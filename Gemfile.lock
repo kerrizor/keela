@@ -1,0 +1,36 @@
+PATH
+  remote: .
+  specs:
+    keela (0.1.0)
+      parallel (~> 1.20)
+      rainbow (~> 3.0)
+      ruby-progressbar (~> 1.11)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.27.0)
+    parallel (1.28.0)
+    rainbow (3.1.1)
+    rake (13.4.2)
+    ruby-progressbar (1.13.0)
+
+PLATFORMS
+  arm64-darwin-24
+  ruby
+
+DEPENDENCIES
+  keela!
+  minitest (~> 5.20)
+  rake (~> 13.0)
+
+CHECKSUMS
+  keela (0.1.0)
+  minitest (5.27.0) sha256=2d3b17f8a36fe7801c1adcffdbc38233b938eb0b4966e97a6739055a45fa77d5
+  parallel (1.28.0) sha256=33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970
+  rainbow (3.1.1) sha256=039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a
+  rake (13.4.2) sha256=cb825b2bd5f1f8e91ca37bddb4b9aaf345551b4731da62949be002fa89283701
+  ruby-progressbar (1.13.0) sha256=80fc9c47a9b640d6834e0dc7b3c94c9df37f08cb072b7761e4a71e22cff29b33
+
+BUNDLED WITH
+  4.0.15

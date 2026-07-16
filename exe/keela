@@ -1,0 +1,86 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "keela"
+
+options = {
+  type: :all,
+  force_report: false,
+  update_baseline: false
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: keela [options]"
+
+  opts.separator ""
+  opts.separator "Keela sniffs out unused code in your Ruby codebase."
+  opts.separator ""
+  opts.separator "By default, if a baseline file exists, Keela runs in diff mode:"
+  opts.separator "  - Fails if NEW unused code is detected"
+  opts.separator "  - Fails if previously unused code was REMOVED (update baseline)"
+  opts.separator "  - Passes if unchanged from baseline"
+  opts.separator ""
+  opts.separator "If no baseline exists, shows a full report of all unused code."
+  opts.separator ""
+  opts.separator "Options:"
+
+  opts.on("--type TYPE", %i[methods scopes all], "Type to detect: methods, scopes, all (default: all)") do |type|
+    options[:type] = type
+  end
+
+  opts.on("--report", "-r", "Force report mode: show all unused code (ignore baseline)") do
+    options[:force_report] = true
+  end
+
+  opts.on("--update-baseline", "-u", "Update the baseline file with current unused code") do
+    options[:update_baseline] = true
+  end
+
+  opts.on("--excluded PATH", "Path to YAML file of excluded items") do |path|
+    Keela.configuration.excluded_path = path
+  end
+
+  opts.on("--baseline PATH", "Path to YAML baseline file (default: .keela_baseline.yml)") do |path|
+    Keela.configuration.baseline_path = path
+  end
+
+  opts.on("--extensions EXTS", "Comma-separated file extensions to scan (default: rb,haml,erb)") do |exts|
+    Keela.configuration.extensions = exts.split(",").map(&:strip)
+  end
+
+  opts.on("--version", "-v", "Show version") do
+    puts "keela #{Keela::VERSION}"
+    exit
+  end
+
+  opts.on("-h", "--help", "Show this help") do
+    puts opts
+    exit
+  end
+end.parse!
+
+# Set default baseline path if not specified
+Keela.configuration.baseline_path ||= ".keela_baseline.yml"
+
+strategies = case options[:type]
+             when :all
+               [Keela::Strategies::Methods.new, Keela::Strategies::Scopes.new]
+             when :methods
+               [Keela::Strategies::Methods.new]
+             when :scopes
+               [Keela::Strategies::Scopes.new]
+             end
+
+success = true
+
+strategies.each_with_index do |strategy, index|
+  puts Rainbow("=== Sniffing for unused #{strategy.name} ===").cyan.bright if strategies.size > 1
+
+  scanner = Keela::Scanner.new(strategy: strategy)
+  success &&= scanner.run(force_report: options[:force_report], update_baseline: options[:update_baseline])
+
+  puts if strategies.size > 1 && index < strategies.size - 1
+end
+
+exit(success ? 0 : 1)

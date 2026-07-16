@@ -1,0 +1,20 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-07-16
+
+### Added
+
+- Initial release
+- `Scanner` class for detecting unused code
+- Built-in strategies for methods and scopes detection
+- CLI tool with `--report` and `--update-baseline` modes
+- Configurable file extensions and directory patterns
+- Baseline comparison for CI integration
+- Exclusion file support for false positives
