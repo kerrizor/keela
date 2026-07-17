@@ -168,7 +168,9 @@ directory_patterns:
   - "custom/**/*.%<ext>s"
 ```
 
-Use `directory_patterns` when you need complete control. Use `--include`/`--exclude` when you just want to tweak the defaults. You typically wouldn't mix both approaches.
+Use `directory_patterns` when you need complete control. Use `--include`/`--exclude` when you just want to tweak the defaults.
+
+**Note:** Mixing both approaches raises a `ConfigurationError`. Choose one or the other.
 
 **Available options:**
 

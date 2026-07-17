@@ -274,7 +274,7 @@ class ScannerIncludePatternsTest < Minitest::Test
   def test_file_globs_includes_both_directory_and_include_patterns
     config = Keela::Configuration.new
     config.extensions = %w[rb]
-    config.directory_patterns = %w[app/**/*.%<ext>s]
+    # Using default directory_patterns, adding include_patterns
     config.include_patterns = %w[engines/**/*.%<ext>s]
 
     strategy = Keela::Strategies::Methods.new
@@ -284,6 +284,81 @@ class ScannerIncludePatternsTest < Minitest::Test
 
     assert_includes globs, "app/**/*.rb"
     assert_includes globs, "engines/**/*.rb"
+  end
+end
+
+class ScannerConfigurationValidationTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+    File.write("app/models/user.rb", "def user_method\nend\n")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_raises_error_when_custom_directory_patterns_with_include_patterns
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[src/**/*.rb]  # Custom, not default
+    config.include_patterns = %w[engines/**/*.rb]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    error = assert_raises(Keela::ConfigurationError) { scanner.run }
+    assert_match(/Cannot use include_patterns or exclude_patterns with custom directory_patterns/, error.message)
+  end
+
+  def test_raises_error_when_custom_directory_patterns_with_exclude_patterns
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[src/**/*.rb]  # Custom, not default
+    config.exclude_patterns = %w[vendor/**/*]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    error = assert_raises(Keela::ConfigurationError) { scanner.run }
+    assert_match(/Cannot use include_patterns or exclude_patterns with custom directory_patterns/, error.message)
+  end
+
+  def test_allows_default_directory_patterns_with_include_patterns
+    config = Keela::Configuration.new
+    # Using default directory_patterns
+    config.include_patterns = %w[engines/**/*.rb]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    # Should not raise - this is the valid use case
+    assert scanner.run
+  end
+
+  def test_allows_default_directory_patterns_with_exclude_patterns
+    config = Keela::Configuration.new
+    # Using default directory_patterns
+    config.exclude_patterns = %w[vendor/**/*]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    # Should not raise - this is the valid use case
+    assert scanner.run
+  end
+
+  def test_allows_custom_directory_patterns_without_include_or_exclude
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[app/**/*.rb]  # Custom, but no include/exclude
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    # Should not raise - full control mode without tweaks
+    assert scanner.run
   end
 end
 
