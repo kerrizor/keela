@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Constants strategy** for detecting unused constant definitions (`SCREAMING_SNAKE_CASE = value`)
 - **Delegations strategy** for detecting unused `delegate :method, to: :target` declarations
 - **Attributes strategy** for detecting unused `attr_accessor`, `attr_reader`, `attr_writer` declarations
+- **Config file support** (`keela.yml` or `.keela.yml`) for project-specific settings ([#6](https://github.com/kerrizor/keela/issues/6))
 
 ### Fixed
 
