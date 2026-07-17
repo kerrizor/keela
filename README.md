@@ -75,9 +75,9 @@ keela
 # Scan for specific types
 keela --type methods
 keela --type scopes
-keela --type constants
-keela --type delegations
-keela --type attributes
+
+# Combine multiple types
+keela --type methods,scopes,constants
 
 # Force report mode (ignore baseline)
 keela --report

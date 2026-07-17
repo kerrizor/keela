@@ -26,8 +26,8 @@ OptionParser.new do |opts|
   opts.separator ""
   opts.separator "Options:"
 
-  opts.on("--type TYPE", %i[methods scopes constants delegations attributes i18n_keys all], "Type to detect: methods, scopes, constants, delegations, attributes, i18n_keys, all (default: all)") do |type|
-    options[:type] = type
+  opts.on("--type TYPES", "Comma-separated types to detect: methods, scopes, constants, delegations, attributes, i18n_keys, all (default: all)") do |types|
+    options[:types] = types.split(",").map { |t| t.strip.to_sym }
   end
 
   opts.on("--report", "-r", "Force report mode: show all unused code (ignore baseline)") do
@@ -80,28 +80,38 @@ Keela::ConfigFile.load(path: options[:config_path])
 # Set default baseline path if not specified
 Keela.configuration.baseline_path ||= ".keela_baseline.yml"
 
-strategies = case options[:type]
-             when :all
-               [
-                 Keela::Strategies::Methods.new,
-                 Keela::Strategies::Scopes.new,
-                 Keela::Strategies::Constants.new,
-                 Keela::Strategies::Delegations.new,
-                 Keela::Strategies::Attributes.new
-               ]
-             when :methods
-               [Keela::Strategies::Methods.new]
-             when :scopes
-               [Keela::Strategies::Scopes.new]
-             when :constants
-               [Keela::Strategies::Constants.new]
-             when :delegations
-               [Keela::Strategies::Delegations.new]
-              when :attributes
-                [Keela::Strategies::Attributes.new]
-              when :i18n_keys
-                [Keela::Strategies::I18nKeys.new]
-              end
+STRATEGY_MAP = {
+  methods: Keela::Strategies::Methods,
+  scopes: Keela::Strategies::Scopes,
+  constants: Keela::Strategies::Constants,
+  delegations: Keela::Strategies::Delegations,
+  attributes: Keela::Strategies::Attributes,
+  i18n_keys: Keela::Strategies::I18nKeys
+}.freeze
+
+# Default strategies for "all" (excludes i18n_keys which requires different config)
+DEFAULT_STRATEGIES = %i[methods scopes constants delegations attributes].freeze
+
+VALID_TYPES = (STRATEGY_MAP.keys + [:all]).freeze
+
+def build_strategies(types)
+  types = types || [:all]
+
+  # Validate types
+  invalid = types - VALID_TYPES
+  unless invalid.empty?
+    warn "Error: Invalid type(s): #{invalid.join(', ')}"
+    warn "Valid types: #{VALID_TYPES.join(', ')}"
+    exit 1
+  end
+
+  # Expand :all to default strategies
+  expanded = types.flat_map { |t| t == :all ? DEFAULT_STRATEGIES : t }.uniq
+
+  expanded.map { |t| STRATEGY_MAP[t].new }
+end
+
+strategies = build_strategies(options[:types])
 
 # Share a single baseline across all strategies
 baseline = Keela::Baseline.new(Keela.configuration.baseline_path)
