@@ -20,6 +20,9 @@ module Keela
     # Whether to show progress during scanning
     attr_accessor :show_progress
 
+    # Glob patterns for files to exclude from scanning
+    attr_accessor :exclude_patterns
+
     def initialize
       @extensions = %w[rb haml erb].freeze
       @directory_patterns = %w[
@@ -31,6 +34,7 @@ module Keela
       @baseline_path = nil
       @required_directory = nil
       @show_progress = true
+      @exclude_patterns = []
     end
   end
 end
