@@ -65,4 +65,13 @@ class ConfigurationTest < Minitest::Test
     @config.show_progress = false
     refute @config.show_progress
   end
+
+  def test_default_exclude_patterns_is_empty
+    assert_equal [], @config.exclude_patterns
+  end
+
+  def test_exclude_patterns_is_configurable
+    @config.exclude_patterns = %w[vendor/**/* tmp/**/*]
+    assert_equal %w[vendor/**/* tmp/**/*], @config.exclude_patterns
+  end
 end

@@ -73,7 +73,17 @@ module Keela
 
     def load_source_files
       Dir.glob(file_globs).each do |filename|
+        next if excluded_file?(filename)
+
         @source_files[filename] = File.readlines(filename)
+      end
+    end
+
+    def excluded_file?(filename)
+      return false if configuration.exclude_patterns.empty?
+
+      configuration.exclude_patterns.any? do |pattern|
+        File.fnmatch?(pattern, filename, File::FNM_PATHNAME | File::FNM_EXTGLOB)
       end
     end
 

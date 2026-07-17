@@ -12,6 +12,7 @@ module Keela
   # Supported keys:
   #   - extensions: Array of file extensions to scan
   #   - directory_patterns: Array of glob patterns for directories to scan
+  #   - exclude_patterns: Array of glob patterns for files to exclude
   #   - excluded_path: Path to YAML file of excluded items
   #   - baseline_path: Path to baseline YAML file
   #   - required_directory: Directory that must exist for scanning to proceed
@@ -34,6 +35,7 @@ module Keela
     ALLOWED_KEYS = %w[
       extensions
       directory_patterns
+      exclude_patterns
       excluded_path
       baseline_path
       required_directory

@@ -131,4 +131,73 @@ class ScannerCommentHandlingTest < Minitest::Test
   end
 end
 
+class ScannerExcludePatternsTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    # Create test file structure
+    FileUtils.mkdir_p("app/models")
+    FileUtils.mkdir_p("vendor/gems")
+    FileUtils.mkdir_p("tmp/cache")
+
+    File.write("app/models/user.rb", "def user_method\nend\n")
+    File.write("vendor/gems/foo.rb", "def vendor_method\nend\n")
+    File.write("tmp/cache/bar.rb", "def tmp_method\nend\n")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_exclude_patterns_filters_out_matching_files
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[**/*.rb]
+    config.exclude_patterns = %w[vendor/**/* tmp/**/*]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    # Access file_globs and then load files
+    scanner.send(:load_source_files)
+
+    # Should only have app/models/user.rb, not vendor or tmp files
+    assert_includes scanner.source_files.keys, "app/models/user.rb"
+    refute scanner.source_files.keys.any? { |f| f.start_with?("vendor/") }
+    refute scanner.source_files.keys.any? { |f| f.start_with?("tmp/") }
+  end
+
+  def test_exclude_patterns_with_no_exclusions_includes_all_files
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[**/*.rb]
+    config.exclude_patterns = []
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.send(:load_source_files)
+
+    assert_includes scanner.source_files.keys, "app/models/user.rb"
+    assert_includes scanner.source_files.keys, "vendor/gems/foo.rb"
+    assert_includes scanner.source_files.keys, "tmp/cache/bar.rb"
+  end
+
+  def test_exclude_patterns_with_specific_file_pattern
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[**/*.rb]
+    config.exclude_patterns = %w[**/foo.rb]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.send(:load_source_files)
+
+    assert_includes scanner.source_files.keys, "app/models/user.rb"
+    refute_includes scanner.source_files.keys, "vendor/gems/foo.rb"
+    assert_includes scanner.source_files.keys, "tmp/cache/bar.rb"
+  end
+end
+
 

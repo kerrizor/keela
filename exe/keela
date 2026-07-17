@@ -50,6 +50,10 @@ OptionParser.new do |opts|
     Keela.configuration.extensions = exts.split(",").map(&:strip)
   end
 
+  opts.on("--exclude PATTERN", "Glob pattern for files to exclude (can be used multiple times)") do |pattern|
+    Keela.configuration.exclude_patterns << pattern
+  end
+
   opts.on("--config PATH", "-c", "Path to config file (default: keela.yml or .keela.yml)") do |path|
     options[:config_path] = path
   end
