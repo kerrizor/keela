@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Include patterns** via `--include` CLI flag or `include_patterns` in config file (adds to default directory patterns)
 - **Configuration validation** - raises `ConfigurationError` if `directory_patterns` is customized while also using `include_patterns` or `exclude_patterns`
 - **I18n keys strategy (beta)** for detecting unused translation keys in locale files (`--type i18n_keys`)
+- **Multiple types** can now be specified with `--type methods,scopes,constants`
 
 ### Fixed
 
