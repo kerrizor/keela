@@ -72,15 +72,24 @@ strategies = case options[:type]
                [Keela::Strategies::Scopes.new]
              end
 
+# Share a single baseline across all strategies
+baseline = Keela::Baseline.new(Keela.configuration.baseline_path)
+
 success = true
 
 strategies.each_with_index do |strategy, index|
   puts Rainbow("=== Sniffing for unused #{strategy.name} ===").cyan.bright if strategies.size > 1
 
-  scanner = Keela::Scanner.new(strategy: strategy)
+  scanner = Keela::Scanner.new(strategy: strategy, baseline: baseline)
   success &&= scanner.run(force_report: options[:force_report], update_baseline: options[:update_baseline])
 
   puts if strategies.size > 1 && index < strategies.size - 1
+end
+
+# Save baseline after all strategies have run
+if options[:update_baseline]
+  baseline.save
+  puts Rainbow("Updated #{baseline.path}").green.bright
 end
 
 exit(success ? 0 : 1)

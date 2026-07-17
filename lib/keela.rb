@@ -6,6 +6,7 @@ require_relative "keela/strategy"
 require_relative "keela/strategies/methods"
 require_relative "keela/strategies/scopes"
 require_relative "keela/reporter"
+require_relative "keela/baseline"
 require_relative "keela/scanner"
 
 module Keela
