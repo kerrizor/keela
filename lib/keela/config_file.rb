@@ -35,6 +35,7 @@ module Keela
     ALLOWED_KEYS = %w[
       extensions
       directory_patterns
+      include_patterns
       exclude_patterns
       excluded_path
       baseline_path

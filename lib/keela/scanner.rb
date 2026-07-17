@@ -54,8 +54,10 @@ module Keela
     end
 
     def file_globs
+      all_patterns = configuration.directory_patterns + configuration.include_patterns
+
       configuration.extensions.flat_map do |ext|
-        configuration.directory_patterns.map { |pattern| format(pattern, ext: ext) }
+        all_patterns.map { |pattern| format(pattern, ext: ext) }
       end
     end
 

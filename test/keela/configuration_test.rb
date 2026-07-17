@@ -74,4 +74,13 @@ class ConfigurationTest < Minitest::Test
     @config.exclude_patterns = %w[vendor/**/* tmp/**/*]
     assert_equal %w[vendor/**/* tmp/**/*], @config.exclude_patterns
   end
+
+  def test_default_include_patterns_is_empty
+    assert_equal [], @config.include_patterns
+  end
+
+  def test_include_patterns_is_configurable
+    @config.include_patterns = %w[engines/**/*.%<ext>s custom/**/*.%<ext>s]
+    assert_equal %w[engines/**/*.%<ext>s custom/**/*.%<ext>s], @config.include_patterns
+  end
 end

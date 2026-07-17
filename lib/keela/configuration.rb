@@ -23,6 +23,9 @@ module Keela
     # Glob patterns for files to exclude from scanning
     attr_accessor :exclude_patterns
 
+    # Additional directory patterns to include (added to directory_patterns)
+    attr_accessor :include_patterns
+
     def initialize
       @extensions = %w[rb haml erb].freeze
       @directory_patterns = %w[
@@ -35,6 +38,7 @@ module Keela
       @required_directory = nil
       @show_progress = true
       @exclude_patterns = []
+      @include_patterns = []
     end
   end
 end
