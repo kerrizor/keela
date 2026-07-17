@@ -109,7 +109,14 @@ module Keela
 
     def find_definitions
       source_files.keys.grep(strategy.definition_file_pattern).flat_map do |filename|
-        source_files[filename].flat_map do |line|
+        lines = source_files[filename]
+
+        # Allow strategies to override file parsing (e.g., for YAML files)
+        custom_definitions = strategy.extract_definitions_from_file(filename, lines)
+        next custom_definitions if custom_definitions
+
+        # Default: line-by-line parsing
+        lines.flat_map do |line|
           next [] if strategy.skip_comments? && line.strip.start_with?("#")
 
           name = strategy.extract_definition(line)
