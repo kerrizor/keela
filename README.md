@@ -97,6 +97,9 @@ keela --extensions rb,rake,haml
 # Exclude files matching patterns
 keela --exclude 'vendor/**/*' --exclude 'tmp/**/*'
 
+# Include additional directories (adds to defaults)
+keela --include 'engines/**/*.rb' --include 'custom/**/*.rb'
+
 # Use a custom config file
 keela --config path/to/keela.yml
 
@@ -124,11 +127,6 @@ Create a `keela.yml` or `.keela.yml` in your project root:
 
 ```yaml
 # keela.yml
-directory_patterns:
-  - "app/**/*.%<ext>s"
-  - "lib/**/*.%<ext>s"
-  - "config/**/*.%<ext>s"
-
 extensions:
   - rb
   - haml
@@ -137,7 +135,9 @@ extensions:
 exclude_patterns:
   - "vendor/**/*"
   - "tmp/**/*"
-  - "node_modules/**/*"
+
+include_patterns:
+  - "engines/**/*.%<ext>s"
 
 excluded_path: ".keela_excluded.yml"
 baseline_path: ".keela_baseline.yml"
@@ -145,13 +145,39 @@ baseline_path: ".keela_baseline.yml"
 
 Keela automatically loads `keela.yml` or `.keela.yml` from the current directory. Use `--config` to specify a different path.
 
+### Customizing Which Files to Scan
+
+There are two approaches:
+
+**1. Tweak the defaults** with `--include` and `--exclude` (or `include_patterns`/`exclude_patterns` in config):
+
+```bash
+# Add engines/ to the default app/, lib/, config/ directories
+keela --include 'engines/**/*.rb'
+
+# Exclude vendor files from scanning
+keela --exclude 'vendor/**/*'
+```
+
+**2. Full control** with `directory_patterns` - replaces the defaults entirely:
+
+```yaml
+# keela.yml - scan ONLY these directories
+directory_patterns:
+  - "src/**/*.%<ext>s"
+  - "custom/**/*.%<ext>s"
+```
+
+Use `directory_patterns` when you need complete control. Use `--include`/`--exclude` when you just want to tweak the defaults. You typically wouldn't mix both approaches.
+
 **Available options:**
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `directory_patterns` | Glob patterns for files to scan (use `%<ext>s` as extension placeholder) | `app/`, `lib/`, `config/` |
+| `directory_patterns` | Glob patterns for files to scan (replaces defaults) | `app/`, `lib/`, `config/` |
 | `extensions` | File extensions to scan | `rb`, `haml`, `erb` |
-| `exclude_patterns` | Glob patterns for files to exclude | `[]` |
+| `include_patterns` | Additional patterns to scan (added to defaults) | `[]` |
+| `exclude_patterns` | Patterns for files to exclude | `[]` |
 | `excluded_path` | Path to YAML file of excluded items | `nil` |
 | `baseline_path` | Path to baseline YAML file | `.keela_baseline.yml` |
 | `required_directory` | Directory that must exist for scanning to proceed | `nil` |
@@ -212,6 +238,7 @@ Keela.configure do |config|
     app/**/*.%<ext>s
     lib/**/*.%<ext>s
   ]
+  config.include_patterns = %w[engines/**/*.%<ext>s]
   config.exclude_patterns = %w[vendor/**/* tmp/**/*]
   config.excluded_path = '.keela_excluded.yml'
   config.baseline_path = '.keela_baseline.yml'

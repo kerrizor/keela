@@ -200,4 +200,91 @@ class ScannerExcludePatternsTest < Minitest::Test
   end
 end
 
+class ScannerIncludePatternsTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    # Create test file structure
+    FileUtils.mkdir_p("app/models")
+    FileUtils.mkdir_p("lib")
+    FileUtils.mkdir_p("engines/billing/app/models")
+    FileUtils.mkdir_p("custom/services")
+
+    File.write("app/models/user.rb", "def user_method\nend\n")
+    File.write("lib/utils.rb", "def lib_method\nend\n")
+    File.write("engines/billing/app/models/invoice.rb", "def invoice_method\nend\n")
+    File.write("custom/services/payment.rb", "def payment_method\nend\n")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_include_patterns_adds_to_directory_patterns
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[app/**/*.rb lib/**/*.rb]
+    config.include_patterns = %w[engines/**/*.rb]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.send(:load_source_files)
+
+    # Should have files from both directory_patterns AND include_patterns
+    assert_includes scanner.source_files.keys, "app/models/user.rb"
+    assert_includes scanner.source_files.keys, "lib/utils.rb"
+    assert_includes scanner.source_files.keys, "engines/billing/app/models/invoice.rb"
+    refute scanner.source_files.keys.any? { |f| f.start_with?("custom/") }
+  end
+
+  def test_include_patterns_with_multiple_patterns
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[app/**/*.rb]
+    config.include_patterns = %w[engines/**/*.rb custom/**/*.rb]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.send(:load_source_files)
+
+    assert_includes scanner.source_files.keys, "app/models/user.rb"
+    assert_includes scanner.source_files.keys, "engines/billing/app/models/invoice.rb"
+    assert_includes scanner.source_files.keys, "custom/services/payment.rb"
+    refute scanner.source_files.keys.any? { |f| f.start_with?("lib/") }
+  end
+
+  def test_include_patterns_empty_does_not_change_behavior
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[app/**/*.rb]
+    config.include_patterns = []
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.send(:load_source_files)
+
+    assert_includes scanner.source_files.keys, "app/models/user.rb"
+    refute scanner.source_files.keys.any? { |f| f.start_with?("engines/") }
+    refute scanner.source_files.keys.any? { |f| f.start_with?("custom/") }
+  end
+
+  def test_file_globs_includes_both_directory_and_include_patterns
+    config = Keela::Configuration.new
+    config.extensions = %w[rb]
+    config.directory_patterns = %w[app/**/*.%<ext>s]
+    config.include_patterns = %w[engines/**/*.%<ext>s]
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    globs = scanner.file_globs
+
+    assert_includes globs, "app/**/*.rb"
+    assert_includes globs, "engines/**/*.rb"
+  end
+end
+
 

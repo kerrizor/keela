@@ -182,6 +182,18 @@ class ConfigFileTest < Minitest::Test
     assert_equal %w[vendor/**/* tmp/**/* node_modules/**/*], Keela.configuration.exclude_patterns
   end
 
+  def test_loads_include_patterns
+    write_config(<<~YAML)
+      include_patterns:
+        - "engines/**/*.%<ext>s"
+        - "custom/**/*.%<ext>s"
+    YAML
+
+    Keela::ConfigFile.load
+
+    assert_equal %w[engines/**/*.%<ext>s custom/**/*.%<ext>s], Keela.configuration.include_patterns
+  end
+
   private
 
   def write_config(content, filename: "keela.yml")

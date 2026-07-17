@@ -54,6 +54,10 @@ OptionParser.new do |opts|
     Keela.configuration.exclude_patterns << pattern
   end
 
+  opts.on("--include PATTERN", "Additional glob pattern to scan (can be used multiple times)") do |pattern|
+    Keela.configuration.include_patterns << pattern
+  end
+
   opts.on("--config PATH", "-c", "Path to config file (default: keela.yml or .keela.yml)") do |path|
     options[:config_path] = path
   end
