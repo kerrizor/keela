@@ -262,7 +262,7 @@ scanner.run(force_report: true)
 
 ## About the Name
 
-[Keela](https://en.wikipedia.org/wiki/Keela_(dog)) was a famous English Springer Spaniel known as the "CSI dog." She could detect microscopic traces of blood that other methods missed, and worked on many high-profile forensic cases including the Madeleine McCann investigation. Like her namesake, this gem finds the unused code that other tools miss.
+Keela was a famous English Springer Spaniel known as the "CSI dog." She could detect microscopic traces of blood that other forensic methods missed, and worked on many high-profile cases. Like her namesake, this gem finds the unused code that other tools miss.
 
 ## License
 
