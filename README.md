@@ -69,12 +69,15 @@ keela --report
 ## Command Line Options
 
 ```bash
-# Scan for all unused code (methods and scopes)
+# Scan for all unused code (methods, scopes, constants, delegations, attributes)
 keela
 
 # Scan for specific types
 keela --type methods
 keela --type scopes
+keela --type constants
+keela --type delegations
+keela --type attributes
 
 # Force report mode (ignore baseline)
 keela --report
@@ -91,9 +94,67 @@ keela --excluded config/keela_excluded.yml
 # Custom file extensions
 keela --extensions rb,rake,haml
 
+# Exclude files matching patterns
+keela --exclude 'vendor/**/*' --exclude 'tmp/**/*'
+
+# Use a custom config file
+keela --config path/to/keela.yml
+
 # Show version
 keela --version
 ```
+
+## Detection Strategies
+
+Keela detects several types of unused code:
+
+| Strategy | Detects | Example |
+|----------|---------|---------|
+| **methods** | Unused method definitions | `def unused_method` |
+| **scopes** | Unused ActiveRecord scopes | `scope :unused_scope, -> { }` |
+| **constants** | Unused constants | `UNUSED_CONSTANT = 'value'` |
+| **delegations** | Unused delegate declarations | `delegate :unused, to: :target` |
+| **attributes** | Unused attr_* declarations | `attr_accessor :unused_attr` |
+
+Run all strategies (default) or target specific ones with `--type`.
+
+## Configuration File
+
+Create a `keela.yml` or `.keela.yml` in your project root:
+
+```yaml
+# keela.yml
+directory_patterns:
+  - "app/**/*.%<ext>s"
+  - "lib/**/*.%<ext>s"
+  - "config/**/*.%<ext>s"
+
+extensions:
+  - rb
+  - haml
+  - erb
+
+exclude_patterns:
+  - "vendor/**/*"
+  - "tmp/**/*"
+  - "node_modules/**/*"
+
+excluded_path: ".keela_excluded.yml"
+baseline_path: ".keela_baseline.yml"
+```
+
+Keela automatically loads `keela.yml` or `.keela.yml` from the current directory. Use `--config` to specify a different path.
+
+**Available options:**
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `directory_patterns` | Glob patterns for files to scan (use `%<ext>s` as extension placeholder) | `app/`, `lib/`, `config/` |
+| `extensions` | File extensions to scan | `rb`, `haml`, `erb` |
+| `exclude_patterns` | Glob patterns for files to exclude | `[]` |
+| `excluded_path` | Path to YAML file of excluded items | `nil` |
+| `baseline_path` | Path to baseline YAML file | `.keela_baseline.yml` |
+| `required_directory` | Directory that must exist for scanning to proceed | `nil` |
 
 ## CI Integration
 
@@ -151,6 +212,7 @@ Keela.configure do |config|
     app/**/*.%<ext>s
     lib/**/*.%<ext>s
   ]
+  config.exclude_patterns = %w[vendor/**/* tmp/**/*]
   config.excluded_path = '.keela_excluded.yml'
   config.baseline_path = '.keela_baseline.yml'
 end
