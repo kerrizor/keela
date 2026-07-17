@@ -236,7 +236,6 @@ keela --format json --report
 
 ```json
 {
-  "version": "0.2.0",
   "strategies": ["methods", "scopes"],
   "unused": {
     "methods": {

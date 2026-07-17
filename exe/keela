@@ -160,7 +160,6 @@ if json_mode
   by_strategy = results.transform_values { |files| files.values.flatten.size }
 
   output = {
-    version: Keela::VERSION,
     strategies: strategies.map(&:name),
     unused: results.reject { |_, v| v.empty? },
     summary: {
