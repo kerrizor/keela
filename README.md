@@ -103,6 +103,9 @@ keela --include 'engines/**/*.rb' --include 'custom/**/*.rb'
 # Use a custom config file
 keela --config path/to/keela.yml
 
+# Output as JSON (for CI integrations)
+keela --format json
+
 # Show version
 keela --version
 ```
@@ -222,6 +225,37 @@ The workflow:
 1. **Initial setup**: Run `keela --update-baseline` and commit `.keela_baseline.yml`
 2. **CI runs**: `keela` compares against baseline, fails on new dead code
 3. **After cleanup**: Run `keela --update-baseline` to update the baseline
+
+### JSON Output
+
+Use `--format json` for machine-readable output:
+
+```bash
+keela --format json --report
+```
+
+```json
+{
+  "strategies": ["methods", "scopes"],
+  "unused": {
+    "methods": {
+      "app/models/user.rb": ["unused_method", "old_helper"]
+    },
+    "scopes": {
+      "app/models/post.rb": ["inactive"]
+    }
+  },
+  "summary": {
+    "total": 3,
+    "by_strategy": {
+      "methods": 2,
+      "scopes": 1
+    }
+  }
+}
+```
+
+This is useful for integrating with other tools, generating reports, or processing results programmatically.
 
 ## Exclusion File
 

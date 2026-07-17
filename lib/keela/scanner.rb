@@ -17,7 +17,7 @@ module Keela
       @removed = []
     end
 
-    def run(force_report: false, update_baseline: false)
+    def run(force_report: false, update_baseline: false, silent: false)
       return true unless should_run?
 
       validate_configuration!
@@ -31,11 +31,11 @@ module Keela
       # Determine mode: report if forced, updating baseline, or no baseline exists
       report_mode = force_report || update_baseline || !baseline.exists?
 
-      find_unused(definitions, show_progress: report_mode)
+      find_unused(definitions, show_progress: report_mode && !silent)
 
       if report_mode
         elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
-        reporter.print_full_report(unused_collection, elapsed)
+        reporter.print_full_report(unused_collection, elapsed) unless silent
         if update_baseline
           baseline.set(strategy.name, unused_collection)
           # Note: caller is responsible for calling baseline.save after all strategies run
@@ -45,12 +45,14 @@ module Keela
 
       # Baseline mode: compare against known unused code
       compare_with_baseline
-      reporter.print_diff_report(
-        new_unused,
-        removed,
-        excluded_path: configuration.excluded_path || "excluded.yml",
-        baseline_path: baseline.path
-      )
+      unless silent
+        reporter.print_diff_report(
+          new_unused,
+          removed,
+          excluded_path: configuration.excluded_path || "excluded.yml",
+          baseline_path: baseline.path
+        )
+      end
 
       new_unused.empty? && removed.empty?
     end

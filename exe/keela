@@ -8,7 +8,8 @@ options = {
   type: :all,
   force_report: false,
   update_baseline: false,
-  config_path: nil
+  config_path: nil,
+  format: :text
 }
 
 OptionParser.new do |opts|
@@ -36,6 +37,10 @@ OptionParser.new do |opts|
 
   opts.on("--update-baseline", "-u", "Update the baseline file with current unused code") do
     options[:update_baseline] = true
+  end
+
+  opts.on("--format FORMAT", %i[text json], "Output format: text (default) or json") do |format|
+    options[:format] = format
   end
 
   opts.on("--excluded PATH", "Path to YAML file of excluded items") do |path|
@@ -117,20 +122,53 @@ strategies = build_strategies(options[:types])
 baseline = Keela::Baseline.new(Keela.configuration.baseline_path)
 
 success = true
+results = {}
+
+json_mode = options[:format] == :json
 
 strategies.each_with_index do |strategy, index|
-  puts Rainbow("=== Sniffing for unused #{strategy.name} ===").cyan.bright if strategies.size > 1
+  unless json_mode
+    puts Rainbow("=== Sniffing for unused #{strategy.name} ===").cyan.bright if strategies.size > 1
+  end
 
   scanner = Keela::Scanner.new(strategy: strategy, baseline: baseline)
-  success &&= scanner.run(force_report: options[:force_report], update_baseline: options[:update_baseline])
+  success &&= scanner.run(
+    force_report: options[:force_report],
+    update_baseline: options[:update_baseline],
+    silent: json_mode
+  )
 
-  puts if strategies.size > 1 && index < strategies.size - 1
+  # Collect results for JSON output
+  results[strategy.name] = scanner.unused_collection.transform_values(&:to_a)
+
+  unless json_mode
+    puts if strategies.size > 1 && index < strategies.size - 1
+  end
 end
 
 # Save baseline after all strategies have run
 if options[:update_baseline]
   baseline.save
-  puts Rainbow("Updated #{baseline.path}").green.bright
+  puts Rainbow("Updated #{baseline.path}").green.bright unless json_mode
+end
+
+# Output JSON if requested
+if json_mode
+  require "json"
+
+  total = results.values.flat_map(&:values).flatten.size
+  by_strategy = results.transform_values { |files| files.values.flatten.size }
+
+  output = {
+    strategies: strategies.map(&:name),
+    unused: results.reject { |_, v| v.empty? },
+    summary: {
+      total: total,
+      by_strategy: by_strategy.reject { |_, v| v.zero? }
+    }
+  }
+
+  puts JSON.pretty_generate(output)
 end
 
 exit(success ? 0 : 1)
