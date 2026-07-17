@@ -287,6 +287,57 @@ class ScannerIncludePatternsTest < Minitest::Test
   end
 end
 
+class ScannerSilentModeTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+    File.write("app/models/user.rb", "def unused_method\nend\n")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_silent_mode_suppresses_output
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    output = capture_io do
+      scanner.run(force_report: true, silent: true)
+    end
+
+    assert_empty output[0], "Expected no stdout output in silent mode"
+  end
+
+  def test_silent_mode_still_populates_unused_collection
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true, silent: true)
+
+    refute_empty scanner.unused_collection
+    assert_includes scanner.unused_collection["app/models/user.rb"], "unused_method"
+  end
+
+  def test_non_silent_mode_produces_output
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    output = capture_io do
+      scanner.run(force_report: true, silent: false)
+    end
+
+    refute_empty output[0], "Expected stdout output in non-silent mode"
+  end
+end
+
 class ScannerConfigurationValidationTest < Minitest::Test
   def setup
     @tmpdir = Dir.mktmpdir
