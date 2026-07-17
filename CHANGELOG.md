@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Baseline` class for managing multi-strategy baseline files ([#1](https://github.com/kerrizor/keela/pull/1))
 - Single baseline file now supports multiple strategy sections (methods, scopes)
+- **Constants strategy** for detecting unused constant definitions (`SCREAMING_SNAKE_CASE = value`)
 
 ### Fixed
 
