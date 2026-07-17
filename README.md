@@ -1,6 +1,14 @@
 # Keela 🐕
 
-Like the famous CSI dog who found what others missed, Keela sniffs out unused code in your Ruby codebase.
+**Your Ruby codebase's forensic investigator.**
+
+Like her namesake — the famous springer spaniel who helped solve cases by finding microscopic traces that eluded forensic teams — Keela sniffs out the dead code that `grep` missed.
+
+```
+🔍 6 strategies: methods, scopes, constants, delegates, attrs, i18n
+🎯 Baseline mode — only bark at NEW dead code  
+📊 JSON output for CI pipelines
+```
 
 ## Why Remove Unused Code?
 
@@ -339,7 +347,11 @@ scanner.run(force_report: true)
 
 ## About the Name
 
-Keela was a famous English Springer Spaniel known as the "CSI dog." She could detect microscopic traces of blood that other forensic methods missed, and worked on many high-profile cases. Like her namesake, this gem finds the unused code that other tools miss.
+Keela was a famous English Springer Spaniel known as the "CSI dog." She could detect microscopic traces of blood that other forensic methods missed, helping solve cases that had gone cold for decades. Her nose was so sensitive she found evidence that luminol and DNA testing couldn't.
+
+Like her namesake, this gem finds the dead code that `grep` and your IDE missed.
+
+*Good girl, Keela.* 🦴
 
 ## License
 
