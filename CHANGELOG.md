@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Single baseline file now supports multiple strategy sections (methods, scopes)
 - **Constants strategy** for detecting unused constant definitions (`SCREAMING_SNAKE_CASE = value`)
 - **Delegations strategy** for detecting unused `delegate :method, to: :target` declarations
+- **Attributes strategy** for detecting unused `attr_accessor`, `attr_reader`, `attr_writer` declarations
 
 ### Fixed
 
