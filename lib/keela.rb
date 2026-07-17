@@ -14,6 +14,9 @@ require_relative "keela/baseline"
 require_relative "keela/scanner"
 
 module Keela
+  class Error < StandardError; end
+  class ConfigurationError < Error; end
+
   class << self
     attr_writer :configuration
 

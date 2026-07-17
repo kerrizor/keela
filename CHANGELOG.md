@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Config file support** (`keela.yml` or `.keela.yml`) for project-specific settings
 - **Exclude patterns** via `--exclude` CLI flag or `exclude_patterns` in config file
 - **Include patterns** via `--include` CLI flag or `include_patterns` in config file (adds to default directory patterns)
+- **Configuration validation** - raises `ConfigurationError` if `directory_patterns` is customized while also using `include_patterns` or `exclude_patterns`
 
 ### Fixed
 

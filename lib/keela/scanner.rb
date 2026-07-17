@@ -20,6 +20,8 @@ module Keela
     def run(force_report: false, update_baseline: false)
       return true unless should_run?
 
+      validate_configuration!
+
       start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       load_source_files
@@ -67,6 +69,22 @@ module Keela
       return true unless configuration.required_directory
 
       Dir.exist?(configuration.required_directory)
+    end
+
+    def validate_configuration!
+      custom_directory_patterns = configuration.directory_patterns != default_directory_patterns
+      has_include_patterns = !configuration.include_patterns.empty?
+      has_exclude_patterns = !configuration.exclude_patterns.empty?
+
+      return unless custom_directory_patterns && (has_include_patterns || has_exclude_patterns)
+
+      raise ConfigurationError,
+        "Cannot use include_patterns or exclude_patterns with custom directory_patterns. " \
+        "Use directory_patterns for full control, OR use include/exclude to tweak the defaults."
+    end
+
+    def default_directory_patterns
+      Keela::Configuration.new.directory_patterns
     end
 
     def reporter
