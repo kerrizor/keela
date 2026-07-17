@@ -5,11 +5,12 @@ require "yaml"
 
 module Keela
   class Scanner
-    attr_reader :strategy, :configuration, :source_files, :unused_collection, :new_unused, :removed
+    attr_reader :strategy, :configuration, :baseline, :source_files, :unused_collection, :new_unused, :removed
 
-    def initialize(strategy:, configuration: Keela.configuration)
+    def initialize(strategy:, configuration: Keela.configuration, baseline: nil)
       @strategy = strategy
       @configuration = configuration
+      @baseline = baseline || Baseline.new(configuration.baseline_path)
       @source_files = {}
       @unused_collection = Hash.new { |hash, key| hash[key] = [] }
       @new_unused = []
@@ -26,14 +27,17 @@ module Keela
       definitions = filter_excluded(definitions)
 
       # Determine mode: report if forced, updating baseline, or no baseline exists
-      report_mode = force_report || update_baseline || !baseline_exists?
+      report_mode = force_report || update_baseline || !baseline.exists?
 
       find_unused(definitions, show_progress: report_mode)
 
       if report_mode
         elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
         reporter.print_full_report(unused_collection, elapsed)
-        write_baseline_file if update_baseline
+        if update_baseline
+          baseline.set(strategy.name, unused_collection)
+          # Note: caller is responsible for calling baseline.save after all strategies run
+        end
         return true
       end
 
@@ -43,7 +47,7 @@ module Keela
         new_unused,
         removed,
         excluded_path: configuration.excluded_path || "excluded.yml",
-        baseline_path: configuration.baseline_path
+        baseline_path: baseline.path
       )
 
       new_unused.empty? && removed.empty?
@@ -56,10 +60,6 @@ module Keela
     end
 
     private
-
-    def baseline_exists?
-      configuration.baseline_path && File.exist?(configuration.baseline_path)
-    end
 
     def should_run?
       return true unless configuration.required_directory
@@ -116,36 +116,13 @@ module Keela
     end
 
     def compare_with_baseline
-      baseline = YAML.load_file(configuration.baseline_path) || {}
-      baseline_items = baseline.flat_map { |f, names| [f].product(names) }
+      baseline_for_strategy = baseline.get(strategy.name)
+      baseline_items = baseline_for_strategy.flat_map { |f, names| [f].product(names) }
 
       current_items = unused_collection.flat_map { |f, names| [f].product(names) }
 
       @new_unused = current_items - baseline_items
       @removed = baseline_items - current_items
-    end
-
-    def write_baseline_file
-      return unless configuration.baseline_path
-
-      header = <<~HEADER
-        # The #{strategy.name} listed here have been identified as "unused" by Keela,
-        # and are potential targets for future removal.
-        #
-        # If a #{strategy.name.chomp('s')} listed here is actually in use,
-        # remove it from this file and add it to your excluded file.
-        #
-      HEADER
-
-      yaml_content = if unused_collection.empty?
-                       "#{header}---\n{}\n"
-                     else
-                       sorted_collection = unused_collection.sort.to_h
-                       "#{header}#{reporter.format_yaml(sorted_collection)}"
-                     end
-
-      File.write(configuration.baseline_path, yaml_content)
-      puts Rainbow("Updated #{configuration.baseline_path}").green.bright
     end
   end
 end

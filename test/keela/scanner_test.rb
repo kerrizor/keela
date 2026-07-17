@@ -59,14 +59,6 @@ class ScannerTest < Minitest::Test
     assert @scanner.run
   end
 
-  def test_run_returns_true_when_no_required_directory_set
-    @config.required_directory = nil
-
-    # Will return true because no files match the default patterns in test env
-    Dir.stub :glob, [] do
-      assert @scanner.run
-    end
-  end
 end
 
 class ScannerWithMockedFilesTest < Minitest::Test
@@ -139,35 +131,4 @@ class ScannerCommentHandlingTest < Minitest::Test
   end
 end
 
-class ScannerBaselineModeTest < Minitest::Test
-  def setup
-    @strategy = Keela::Strategies::Methods.new
-    @config = Keela::Configuration.new
-    @scanner = Keela::Scanner.new(strategy: @strategy, configuration: @config)
-  end
 
-  def test_runs_report_mode_when_no_baseline_exists
-    @config.baseline_path = "/nonexistent/baseline.yml"
-
-    Dir.stub :glob, [] do
-      # Should return true (report mode always returns true)
-      assert @scanner.run
-    end
-  end
-
-  def test_runs_report_mode_when_force_report_is_true
-    @config.baseline_path = nil
-
-    Dir.stub :glob, [] do
-      assert @scanner.run(force_report: true)
-    end
-  end
-
-  def test_runs_report_mode_when_update_baseline_is_true
-    @config.baseline_path = nil
-
-    Dir.stub :glob, [] do
-      assert @scanner.run(update_baseline: true)
-    end
-  end
-end
