@@ -7,7 +7,8 @@ require "keela"
 options = {
   type: :all,
   force_report: false,
-  update_baseline: false
+  update_baseline: false,
+  config_path: nil
 }
 
 OptionParser.new do |opts|
@@ -49,6 +50,10 @@ OptionParser.new do |opts|
     Keela.configuration.extensions = exts.split(",").map(&:strip)
   end
 
+  opts.on("--config PATH", "-c", "Path to config file (default: keela.yml or .keela.yml)") do |path|
+    options[:config_path] = path
+  end
+
   opts.on("--version", "-v", "Show version") do
     puts "keela #{Keela::VERSION}"
     exit
@@ -59,6 +64,10 @@ OptionParser.new do |opts|
     exit
   end
 end.parse!
+
+# Load config file (keela.yml or .keela.yml) if present
+# CLI options override config file settings
+Keela::ConfigFile.load(path: options[:config_path])
 
 # Set default baseline path if not specified
 Keela.configuration.baseline_path ||= ".keela_baseline.yml"

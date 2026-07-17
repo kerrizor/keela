@@ -2,6 +2,7 @@
 
 require_relative "keela/version"
 require_relative "keela/configuration"
+require_relative "keela/config_file"
 require_relative "keela/strategy"
 require_relative "keela/strategies/methods"
 require_relative "keela/strategies/scopes"
