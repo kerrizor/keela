@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    keela (0.1.0)
+    keela (0.2.0)
       parallel (~> 1.20)
       rainbow (~> 3.0)
       ruby-progressbar (~> 1.11)
@@ -25,7 +25,8 @@ DEPENDENCIES
   rake (~> 13.0)
 
 CHECKSUMS
-  keela (0.1.0)
+  bundler (4.0.15) sha256=a4ceb882fe94a0e0ac63cd0813932bbfd631a14e5ac0b7975189b19a4d28d9e7
+  keela (0.2.0)
   minitest (5.27.0) sha256=2d3b17f8a36fe7801c1adcffdbc38233b938eb0b4966e97a6739055a45fa77d5
   parallel (1.28.0) sha256=33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970
   rainbow (3.1.1) sha256=039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a
