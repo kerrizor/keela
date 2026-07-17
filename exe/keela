@@ -26,7 +26,7 @@ OptionParser.new do |opts|
   opts.separator ""
   opts.separator "Options:"
 
-  opts.on("--type TYPE", %i[methods scopes constants delegations attributes all], "Type to detect: methods, scopes, constants, delegations, attributes, all (default: all)") do |type|
+  opts.on("--type TYPE", %i[methods scopes constants delegations attributes i18n_keys all], "Type to detect: methods, scopes, constants, delegations, attributes, i18n_keys, all (default: all)") do |type|
     options[:type] = type
   end
 
@@ -97,9 +97,11 @@ strategies = case options[:type]
                [Keela::Strategies::Constants.new]
              when :delegations
                [Keela::Strategies::Delegations.new]
-             when :attributes
-               [Keela::Strategies::Attributes.new]
-             end
+              when :attributes
+                [Keela::Strategies::Attributes.new]
+              when :i18n_keys
+                [Keela::Strategies::I18nKeys.new]
+              end
 
 # Share a single baseline across all strategies
 baseline = Keela::Baseline.new(Keela.configuration.baseline_path)

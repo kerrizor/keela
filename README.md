@@ -118,8 +118,22 @@ Keela detects several types of unused code:
 | **constants** | Unused constants | `UNUSED_CONSTANT = 'value'` |
 | **delegations** | Unused delegate declarations | `delegate :unused, to: :target` |
 | **attributes** | Unused attr_* declarations | `attr_accessor :unused_attr` |
+| **i18n_keys** | Unused translation keys | `en.users.unused_key` in locale YAML |
 
 Run all strategies (default) or target specific ones with `--type`.
+
+**Note:** The `i18n_keys` strategy is not included in `--type all` because it requires scanning YAML locale files. Run it explicitly with `--type i18n_keys`.
+
+### I18n Keys (Beta)
+
+The `i18n_keys` strategy is **beta** and may produce false positives. It cannot detect:
+
+- **Lazy lookup** - `t('.title')` in views resolves based on the view path
+- **Dynamic keys** - `t("users.#{action}.title")` with interpolated segments
+- **Model translations** - `User.human_attribute_name(:email)` and `User.model_name.human`
+- **Pluralization siblings** - If `one:` is used, `other:` may appear unused
+
+Review results carefully and use the exclusion file for known false positives.
 
 ## Configuration File
 

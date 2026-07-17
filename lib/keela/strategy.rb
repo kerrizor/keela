@@ -32,5 +32,12 @@ module Keela
     def skip_comments?
       false
     end
+
+    # Override this method for strategies that need custom file parsing
+    # (e.g., YAML files for I18n keys).
+    # Returns an array of { name:, file: } hashes, or nil to use default line-by-line parsing.
+    def extract_definitions_from_file(_filepath, _lines)
+      nil
+    end
   end
 end
