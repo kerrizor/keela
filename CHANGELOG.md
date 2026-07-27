@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Default suggested excluded filename changed from `excluded.yml` to `keela_excluded.yml` for consistency with `keela_baseline.yml` ([#28](https://github.com/kerrizor/keela/pull/28))
+- Default file locations now support `.keela/` directory with fallback to root ([#29](https://github.com/kerrizor/keela/pull/29))
+  - Excluded: `.keela/excluded.yml` → `keela_excluded.yml`
+  - Baseline: `.keela/baseline.yml` → `keela_baseline.yml`
 
 ## [0.2.0] - 2026-07-17
 
