@@ -31,7 +31,7 @@ module Keela
       # Determine mode: report if forced, updating baseline, or no baseline exists
       report_mode = force_report || update_baseline || !baseline.exists?
 
-      find_unused(definitions, show_progress: report_mode && !silent)
+      find_unused(definitions, show_progress: report_mode && !silent && configuration.show_progress)
 
       if report_mode
         elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start

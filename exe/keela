@@ -9,7 +9,8 @@ options = {
   force_report: false,
   update_baseline: false,
   config_path: nil,
-  format: :text
+  format: :text,
+  quiet: false
 }
 
 OptionParser.new do |opts|
@@ -72,6 +73,10 @@ OptionParser.new do |opts|
     exit
   end
 
+  opts.on("--quiet", "-q", "Suppress progress bar output (useful for CI and scripting)") do
+    options[:quiet] = true
+  end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
@@ -81,6 +86,9 @@ end.parse!
 # Load config file (keela.yml or .keela.yml) if present
 # CLI options override config file settings
 Keela::ConfigFile.load(path: options[:config_path])
+
+# Apply quiet mode if requested
+Keela.configuration.show_progress = false if options[:quiet]
 
 # Set default baseline path if not specified
 Keela.configuration.baseline_path ||= ".keela_baseline.yml"

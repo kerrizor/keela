@@ -114,6 +114,10 @@ keela --config path/to/keela.yml
 # Output as JSON (for CI integrations)
 keela --format json
 
+# Suppress progress bar (useful for CI and scripting)
+keela --quiet
+keela -q
+
 # Show version
 keela --version
 ```

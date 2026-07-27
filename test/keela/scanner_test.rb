@@ -338,6 +338,49 @@ class ScannerSilentModeTest < Minitest::Test
   end
 end
 
+class ScannerShowProgressTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+    File.write("app/models/user.rb", "def unused_method\nend\n")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_show_progress_false_suppresses_progress_bar
+    config = Keela::Configuration.new
+    config.show_progress = false
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    # In report mode, progress would normally show, but show_progress=false should suppress it
+    output = capture_io do
+      scanner.run(force_report: true, silent: false)
+    end
+
+    # The output should contain the report but NOT progress bar output
+    # Progress bar output contains "Checking methods" with ANSI codes
+    refute_match(/Checking methods.*\r/, output[0], "Progress bar should be suppressed when show_progress is false")
+  end
+
+  def test_show_progress_true_allows_progress_bar_in_report_mode
+    config = Keela::Configuration.new
+    config.show_progress = true
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    # This test just ensures the scanner runs without error when show_progress is true
+    # Actually testing progress bar output is tricky due to TTY detection
+    assert scanner.run(force_report: true, silent: false)
+  end
+end
+
 class ScannerConfigurationValidationTest < Minitest::Test
   def setup
     @tmpdir = Dir.mktmpdir
