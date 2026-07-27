@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Quiet mode** via `--quiet` / `-q` CLI flag to suppress progress bar output ([#26](https://github.com/kerrizor/keela/issues/26))
 
+### Changed
+
+- Default file locations now support `.keela/` directory with fallback to root ([#28](https://github.com/kerrizor/keela/pull/28))
+  - Excluded: `.keela/excluded.yml` → `keela_excluded.yml`
+  - Baseline: `.keela/baseline.yml` → `keela_baseline.yml`
+
 ## [0.2.0] - 2026-07-17
 
 ### Added

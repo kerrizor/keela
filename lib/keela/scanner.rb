@@ -7,10 +7,13 @@ module Keela
   class Scanner
     attr_reader :strategy, :configuration, :baseline, :source_files, :unused_collection, :new_unused, :removed
 
+    DEFAULT_EXCLUDED_PATHS = [".keela/excluded.yml", "keela_excluded.yml"].freeze
+    DEFAULT_BASELINE_PATHS = [".keela/baseline.yml", "keela_baseline.yml"].freeze
+
     def initialize(strategy:, configuration: Keela.configuration, baseline: nil)
       @strategy = strategy
       @configuration = configuration
-      @baseline = baseline || Baseline.new(configuration.baseline_path)
+      @baseline = baseline || Baseline.new(resolve_baseline_path)
       @source_files = {}
       @unused_collection = Hash.new { |hash, key| hash[key] = [] }
       @new_unused = []
@@ -49,7 +52,7 @@ module Keela
         reporter.print_diff_report(
           new_unused,
           removed,
-          excluded_path: configuration.excluded_path || "excluded.yml",
+          excluded_path: resolve_excluded_path || ".keela/excluded.yml",
           baseline_path: baseline.path
         )
       end
@@ -128,15 +131,29 @@ module Keela
     end
 
     def filter_excluded(definitions)
-      return definitions unless configuration.excluded_path
-      return definitions unless File.exist?(configuration.excluded_path)
+      path = resolve_excluded_path
+      return definitions unless path
 
-      excluded = YAML.load_file(configuration.excluded_path, symbolize_names: true) || {}
+      excluded = YAML.load_file(path, symbolize_names: true) || {}
 
       definitions.reject do |h|
         excluded_for_file = excluded[h[:file].to_sym]
         excluded_for_file&.flat_map(&:keys)&.include?(h[:name].to_sym)
       end
+    end
+
+    def resolve_excluded_path
+      return configuration.excluded_path if configuration.excluded_path && File.exist?(configuration.excluded_path)
+
+      # Check default locations in order of preference
+      DEFAULT_EXCLUDED_PATHS.find { |path| File.exist?(path) }
+    end
+
+    def resolve_baseline_path
+      return configuration.baseline_path if configuration.baseline_path && File.exist?(configuration.baseline_path)
+
+      # Check default locations in order of preference
+      DEFAULT_BASELINE_PATHS.find { |path| File.exist?(path) }
     end
 
     def find_unused(definitions, show_progress: false)
