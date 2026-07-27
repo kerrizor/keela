@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Quiet mode** via `--quiet` / `-q` CLI flag to suppress progress bar output ([#26](https://github.com/kerrizor/keela/issues/26))
+
 ## [0.2.0] - 2026-07-17
 
 ### Added
