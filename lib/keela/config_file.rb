@@ -3,11 +3,12 @@
 require "yaml"
 
 module Keela
-  # Loads configuration from a YAML file.
-  #
-  # Looks for config files in this order:
-  #   1. keela.yml
-  #   2. .keela.yml
+# Loads configuration from a YAML file.
+#
+# Looks for config files in this order:
+#   1. .keela/config.yml
+#   2. keela.yml
+#   3. .keela.yml
   #
   # Supported keys:
   #   - extensions: Array of file extensions to scan
@@ -30,7 +31,7 @@ module Keela
   #     - erb
   #
   module ConfigFile
-    CONFIG_FILENAMES = %w[keela.yml .keela.yml].freeze
+    CONFIG_FILENAMES = %w[.keela/config.yml keela.yml .keela.yml].freeze
 
     ALLOWED_KEYS = %w[
       extensions

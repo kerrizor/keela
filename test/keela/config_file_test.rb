@@ -57,6 +57,40 @@ class ConfigFileTest < Minitest::Test
     assert_equal ["from_keela_yml/**/*.%<ext>s"], Keela.configuration.directory_patterns
   end
 
+  def test_loads_config_from_keela_directory
+    Dir.mkdir(".keela")
+    write_config(<<~YAML, filename: ".keela/config.yml")
+      directory_patterns:
+        - "from_keela_dir/**/*.%<ext>s"
+    YAML
+
+    Keela::ConfigFile.load
+
+    assert_equal ["from_keela_dir/**/*.%<ext>s"], Keela.configuration.directory_patterns
+  end
+
+  def test_keela_directory_takes_precedence_over_root_files
+    Dir.mkdir(".keela")
+    write_config(<<~YAML, filename: ".keela/config.yml")
+      directory_patterns:
+        - "from_keela_dir/**/*.%<ext>s"
+    YAML
+
+    write_config(<<~YAML, filename: "keela.yml")
+      directory_patterns:
+        - "from_keela_yml/**/*.%<ext>s"
+    YAML
+
+    write_config(<<~YAML, filename: ".keela.yml")
+      directory_patterns:
+        - "from_dot_keela_yml/**/*.%<ext>s"
+    YAML
+
+    Keela::ConfigFile.load
+
+    assert_equal ["from_keela_dir/**/*.%<ext>s"], Keela.configuration.directory_patterns
+  end
+
   def test_loads_extensions
     write_config(<<~YAML)
       extensions:

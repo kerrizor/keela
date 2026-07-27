@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Config file lookup now includes `.keela/config.yml` as the first option ([#30](https://github.com/kerrizor/keela/pull/30))
+  - Lookup order: `.keela/config.yml` → `keela.yml` → `.keela.yml`
+
 ## [0.2.1] - 2026-07-27
 
 ### Added
