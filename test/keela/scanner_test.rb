@@ -454,6 +454,140 @@ class ScannerConfigurationValidationTest < Minitest::Test
     # Should not raise - full control mode without tweaks
     assert scanner.run
   end
+
+  # resolve_excluded_path tests
+
+  def test_resolve_excluded_path_returns_configured_path_when_file_exists
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        File.write("custom_excluded.yml", "---\n{}")
+
+        config = Keela::Configuration.new
+        config.excluded_path = "custom_excluded.yml"
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_equal "custom_excluded.yml", scanner.send(:resolve_excluded_path)
+      end
+    end
+  end
+
+  def test_resolve_excluded_path_returns_nil_when_configured_path_does_not_exist
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        config = Keela::Configuration.new
+        config.excluded_path = "nonexistent.yml"
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_nil scanner.send(:resolve_excluded_path)
+      end
+    end
+  end
+
+  def test_resolve_excluded_path_prefers_keela_directory
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        Dir.mkdir(".keela")
+        File.write(".keela/excluded.yml", "---\n{}")
+        File.write("keela_excluded.yml", "---\n{}")
+
+        config = Keela::Configuration.new
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_equal ".keela/excluded.yml", scanner.send(:resolve_excluded_path)
+      end
+    end
+  end
+
+  def test_resolve_excluded_path_falls_back_to_root_file
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        File.write("keela_excluded.yml", "---\n{}")
+
+        config = Keela::Configuration.new
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_equal "keela_excluded.yml", scanner.send(:resolve_excluded_path)
+      end
+    end
+  end
+
+  def test_resolve_excluded_path_returns_nil_when_no_files_exist
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        config = Keela::Configuration.new
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_nil scanner.send(:resolve_excluded_path)
+      end
+    end
+  end
+
+  # resolve_baseline_path tests
+
+  def test_resolve_baseline_path_returns_configured_path_when_file_exists
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        File.write("custom_baseline.yml", "---\n{}")
+
+        config = Keela::Configuration.new
+        config.baseline_path = "custom_baseline.yml"
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_equal "custom_baseline.yml", scanner.send(:resolve_baseline_path)
+      end
+    end
+  end
+
+  def test_resolve_baseline_path_returns_nil_when_configured_path_does_not_exist
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        config = Keela::Configuration.new
+        config.baseline_path = "nonexistent.yml"
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_nil scanner.send(:resolve_baseline_path)
+      end
+    end
+  end
+
+  def test_resolve_baseline_path_prefers_keela_directory
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        Dir.mkdir(".keela")
+        File.write(".keela/baseline.yml", "---\n{}")
+        File.write("keela_baseline.yml", "---\n{}")
+
+        config = Keela::Configuration.new
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_equal ".keela/baseline.yml", scanner.send(:resolve_baseline_path)
+      end
+    end
+  end
+
+  def test_resolve_baseline_path_falls_back_to_root_file
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        File.write("keela_baseline.yml", "---\n{}")
+
+        config = Keela::Configuration.new
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_equal "keela_baseline.yml", scanner.send(:resolve_baseline_path)
+      end
+    end
+  end
+
+  def test_resolve_baseline_path_returns_nil_when_no_files_exist
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        config = Keela::Configuration.new
+        scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+        assert_nil scanner.send(:resolve_baseline_path)
+      end
+    end
+  end
 end
 
 
