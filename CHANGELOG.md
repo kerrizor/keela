@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Quiet mode** via `--quiet` / `-q` CLI flag to suppress progress bar output ([#26](https://github.com/kerrizor/keela/issues/26))
 
+### Changed
+
+- Default suggested excluded filename changed from `excluded.yml` to `keela_excluded.yml` for consistency with `keela_baseline.yml` ([#28](https://github.com/kerrizor/keela/pull/28))
+
 ## [0.2.0] - 2026-07-17
 
 ### Added

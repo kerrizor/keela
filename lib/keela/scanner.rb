@@ -49,7 +49,7 @@ module Keela
         reporter.print_diff_report(
           new_unused,
           removed,
-          excluded_path: configuration.excluded_path || "excluded.yml",
+          excluded_path: configuration.excluded_path || "keela_excluded.yml",
           baseline_path: baseline.path
         )
       end
