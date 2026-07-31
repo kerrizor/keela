@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-07-31
+
 ### Fixed
 
 - Constants strategy no longer detects regex match operator (`=~`) usage as constant definitions ([#31](https://github.com/kerrizor/keela/pull/31))
+
+### Changed
+
+- Stop tracking `Gemfile.lock` - gems should not commit their lockfile ([#33](https://github.com/kerrizor/keela/pull/33))
 
 ## [0.2.2] - 2026-07-27
 
