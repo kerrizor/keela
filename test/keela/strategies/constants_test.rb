@@ -99,6 +99,14 @@ class ConstantsStrategyTest < Minitest::Test
     assert_nil @strategy.extract_definition("if MAX_SIZE == 100")
   end
 
+  def test_does_not_match_not_equal_comparisons
+    assert_nil @strategy.extract_definition("if MAX_SIZE != 100")
+  end
+
+  def test_does_not_match_regex_match_operator
+    assert_nil @strategy.extract_definition("DATETIME_REGEX =~ @timeline_date_string")
+  end
+
   def test_does_not_match_usage_in_conditionals
     assert_nil @strategy.extract_definition("return if ENABLED")
   end

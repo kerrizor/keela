@@ -26,8 +26,8 @@ module Keela
         #   - Namespaced access: Foo::BAR
         #   - Class/module definitions
 
-        # First check it's not a comparison
-        return nil if line =~ /[!=]=/
+        # First check it's not a comparison or regex match operator
+        return nil if line =~ /[!=]=|=~/
 
         # Match the constant definition pattern
         return nil unless line =~ /^\s*([A-Z][A-Z0-9_]*)\s*=/
