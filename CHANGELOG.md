@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Constants strategy no longer detects regex match operator (`=~`) usage as constant definitions ([#31](https://github.com/kerrizor/keela/pull/31))
+
 ## [0.2.2] - 2026-07-27
 
 ### Changed
