@@ -138,6 +138,9 @@ strategies = build_strategies(options[:types])
 # Share a single baseline across all strategies
 baseline = Keela::Baseline.new(Keela.configuration.baseline_path)
 
+# Load source files once and share across all strategies
+source_files = Keela::Scanner.load_source_files
+
 success = true
 results = {}
 
@@ -148,7 +151,7 @@ strategies.each_with_index do |strategy, index|
     puts Rainbow("=== Sniffing for unused #{strategy.name} ===").cyan.bright if strategies.size > 1
   end
 
-  scanner = Keela::Scanner.new(strategy: strategy, baseline: baseline)
+  scanner = Keela::Scanner.new(strategy: strategy, baseline: baseline, source_files: source_files)
   success &&= scanner.run(
     force_report: options[:force_report],
     update_baseline: options[:update_baseline],

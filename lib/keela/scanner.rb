@@ -10,11 +10,43 @@ module Keela
     DEFAULT_EXCLUDED_PATHS = [".keela/excluded.yml", "keela_excluded.yml"].freeze
     DEFAULT_BASELINE_PATHS = [".keela/baseline.yml", "keela_baseline.yml"].freeze
 
-    def initialize(strategy:, configuration: Keela.configuration, baseline: nil)
+    # Load source files once for sharing across multiple Scanner instances.
+    # Returns a hash of { filename => [lines] }.
+    def self.load_source_files(configuration: Keela.configuration)
+      source_files = {}
+      file_globs = build_file_globs(configuration)
+
+      Dir.glob(file_globs).each do |filename|
+        next if excluded_file?(filename, configuration)
+
+        source_files[filename] = File.readlines(filename)
+      end
+
+      source_files
+    end
+
+    def self.build_file_globs(configuration)
+      all_patterns = configuration.directory_patterns + configuration.include_patterns
+
+      configuration.extensions.flat_map do |ext|
+        all_patterns.map { |pattern| format(pattern, ext: ext) }
+      end
+    end
+
+    def self.excluded_file?(filename, configuration)
+      return false if configuration.exclude_patterns.empty?
+
+      configuration.exclude_patterns.any? do |pattern|
+        File.fnmatch?(pattern, filename, File::FNM_PATHNAME | File::FNM_EXTGLOB)
+      end
+    end
+
+    def initialize(strategy:, configuration: Keela.configuration, baseline: nil, source_files: nil)
       @strategy = strategy
       @configuration = configuration
       @baseline = baseline || Baseline.new(resolve_baseline_path)
-      @source_files = {}
+      @source_files = source_files || {}
+      @source_files_preloaded = !source_files.nil?
       @unused_collection = Hash.new { |hash, key| hash[key] = [] }
       @new_unused = []
       @removed = []
@@ -97,6 +129,8 @@ module Keela
     end
 
     def load_source_files
+      return if @source_files_preloaded
+
       Dir.glob(file_globs).each do |filename|
         next if excluded_file?(filename)
 
