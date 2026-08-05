@@ -134,7 +134,16 @@ module Keela
       path = resolve_excluded_path
       return definitions unless path
 
-      excluded = YAML.load_file(path, symbolize_names: true) || {}
+      all_excluded = YAML.load_file(path, symbolize_names: true) || {}
+
+      # Support both formats:
+      # 1. Strategy-aware (new): { methods: { "file.rb": [{ name: "reason" }] } }
+      # 2. Flat (legacy): { "file.rb": [{ name: "reason" }] }
+      excluded = if all_excluded.key?(strategy.name.to_sym)
+                   all_excluded[strategy.name.to_sym] || {}
+                 else
+                   all_excluded # Legacy flat format
+                 end
 
       definitions.reject do |h|
         excluded_for_file = excluded[h[:file].to_sym]

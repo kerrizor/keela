@@ -271,21 +271,46 @@ This is useful for integrating with other tools, generating reports, or processi
 
 ## Exclusion File
 
-Some code appears unused but is actually called dynamically. Exclude it:
+Some code appears unused but is actually called dynamically. Exclude it using the **strategy-aware format** (recommended):
 
 ```yaml
-# .keela_excluded.yml
+# .keela/excluded.yml (strategy-aware format)
+methods:
+  app/models/user.rb:
+    - legacy_method: "Called via metaprogramming"
+    - callback_method: "Used as ActiveRecord callback"
+  app/helpers/application_helper.rb:
+    - helper_method: "Called from views dynamically"
+scopes:
+  app/models/user.rb:
+    - active: "Called dynamically via send()"
+```
+
+This format mirrors the baseline file structure and allows you to exclude the same name in one strategy while flagging it in another. For example, if you have both `scope :active` and `def active` in the same file, you can exclude them independently.
+
+### Legacy Flat Format
+
+The flat format is still supported for backward compatibility:
+
+```yaml
+# .keela_excluded.yml (legacy flat format)
 app/models/user.rb:
   - legacy_method: "Called via metaprogramming"
   - callback_method: "Used as ActiveRecord callback"
-app/helpers/application_helper.rb:
-  - helper_method: "Called from views dynamically"
 ```
 
-Then run with:
+**Note:** With the flat format, an exclusion applies to ALL strategies. If you exclude `active`, both the method and scope named `active` will be excluded.
+
+### Usage
 
 ```bash
-keela --excluded .keela_excluded.yml
+keela --excluded .keela/excluded.yml
+```
+
+Or configure in `keela.yml`:
+
+```yaml
+excluded_path: ".keela/excluded.yml"
 ```
 
 ## Ruby API
