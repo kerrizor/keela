@@ -13,6 +13,9 @@ options = {
   quiet: false
 }
 
+# Store CLI overrides separately so they can be applied after config file loads
+cli_overrides = {}
+
 OptionParser.new do |opts|
   opts.banner = "Usage: keela [options]"
 
@@ -45,23 +48,25 @@ OptionParser.new do |opts|
   end
 
   opts.on("--excluded PATH", "Path to YAML file of excluded items") do |path|
-    Keela.configuration.excluded_path = path
+    cli_overrides[:excluded_path] = path
   end
 
   opts.on("--baseline PATH", "Path to YAML baseline file (default: .keela_baseline.yml)") do |path|
-    Keela.configuration.baseline_path = path
+    cli_overrides[:baseline_path] = path
   end
 
   opts.on("--extensions EXTS", "Comma-separated file extensions to scan (default: rb,haml,erb)") do |exts|
-    Keela.configuration.extensions = exts.split(",").map(&:strip)
+    cli_overrides[:extensions] = exts.split(",").map(&:strip)
   end
 
   opts.on("--exclude PATTERN", "Glob pattern for files to exclude (can be used multiple times)") do |pattern|
-    Keela.configuration.exclude_patterns << pattern
+    cli_overrides[:exclude_patterns] ||= []
+    cli_overrides[:exclude_patterns] << pattern
   end
 
   opts.on("--include PATTERN", "Additional glob pattern to scan (can be used multiple times)") do |pattern|
-    Keela.configuration.include_patterns << pattern
+    cli_overrides[:include_patterns] ||= []
+    cli_overrides[:include_patterns] << pattern
   end
 
   opts.on("--config PATH", "-c", "Path to config file (default: keela.yml or .keela.yml)") do |path|
@@ -84,8 +89,12 @@ OptionParser.new do |opts|
 end.parse!
 
 # Load config file (keela.yml or .keela.yml) if present
-# CLI options override config file settings
 Keela::ConfigFile.load(path: options[:config_path])
+
+# Apply CLI overrides (these take precedence over config file)
+cli_overrides.each do |key, value|
+  Keela.configuration.public_send("#{key}=", value)
+end
 
 # Apply quiet mode if requested
 Keela.configuration.show_progress = false if options[:quiet]
