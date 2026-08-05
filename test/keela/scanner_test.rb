@@ -59,6 +59,70 @@ class ScannerTest < Minitest::Test
     assert @scanner.run
   end
 
+  def test_initializes_with_preloaded_source_files
+    preloaded = { "app/models/user.rb" => ["def foo\n", "end\n"] }
+    scanner = Keela::Scanner.new(strategy: @strategy, configuration: @config, source_files: preloaded)
+
+    assert_equal preloaded, scanner.source_files
+  end
+
+end
+
+class ScannerClassMethodsTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+    FileUtils.mkdir_p("lib")
+    File.write("app/models/user.rb", "def user_method\nend\n")
+    File.write("lib/utils.rb", "def lib_method\nend\n")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_load_source_files_returns_hash_of_files
+    config = Keela::Configuration.new
+    source_files = Keela::Scanner.load_source_files(configuration: config)
+
+    assert_kind_of Hash, source_files
+    assert_includes source_files.keys, "app/models/user.rb"
+    assert_includes source_files.keys, "lib/utils.rb"
+  end
+
+  def test_load_source_files_contains_file_contents
+    config = Keela::Configuration.new
+    source_files = Keela::Scanner.load_source_files(configuration: config)
+
+    assert_equal ["def user_method\n", "end\n"], source_files["app/models/user.rb"]
+  end
+
+  def test_load_source_files_respects_exclude_patterns
+    config = Keela::Configuration.new
+    config.exclude_patterns = ["lib/**/*"]
+    source_files = Keela::Scanner.load_source_files(configuration: config)
+
+    assert_includes source_files.keys, "app/models/user.rb"
+    refute source_files.keys.any? { |f| f.start_with?("lib/") }
+  end
+
+  def test_preloaded_source_files_skips_loading
+    config = Keela::Configuration.new
+    preloaded = { "fake/file.rb" => ["# fake content\n"] }
+
+    strategy = Keela::Strategies::Methods.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config, source_files: preloaded)
+
+    # Run should use preloaded files, not load from disk
+    scanner.run(force_report: true, silent: true)
+
+    # Source files should still be the preloaded ones (not replaced by disk files)
+    assert_equal preloaded, scanner.source_files
+  end
 end
 
 class ScannerWithMockedFilesTest < Minitest::Test

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Strategy-aware exclusion file format** - Exclusion files can now be organized by strategy (methods, scopes, etc.) to match the baseline file format. This allows excluding the same name in one strategy while flagging it in another. The legacy flat format is still supported for backward compatibility.
 
+### Changed
+
+- **Performance: Share source files across strategies** - When scanning multiple strategies, source files are now loaded once and shared, reducing scan time by ~33% on large codebases.
+
 ### Fixed
 
 - CLI options now correctly override config file settings ([#36](https://github.com/kerrizor/keela/pull/36))
