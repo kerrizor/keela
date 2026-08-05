@@ -522,6 +522,166 @@ class ScannerConfigurationValidationTest < Minitest::Test
     end
   end
 
+  # filter_excluded tests
+
+  def test_filter_excluded_with_strategy_aware_format
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        # Strategy-aware format: grouped by strategy name
+        excluded_content = <<~YAML
+          methods:
+            "app/models/user.rb":
+              - excluded_method: "Called via metaprogramming"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+        strategy = Keela::Strategies::Methods.new
+        scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+        definitions = [
+          { name: "excluded_method", file: "app/models/user.rb" },
+          { name: "kept_method", file: "app/models/user.rb" }
+        ]
+
+        result = scanner.send(:filter_excluded, definitions)
+
+        assert_equal 1, result.size
+        assert_equal "kept_method", result.first[:name]
+      end
+    end
+  end
+
+  def test_filter_excluded_with_legacy_flat_format
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        # Legacy flat format: no strategy grouping
+        excluded_content = <<~YAML
+          "app/models/user.rb":
+            - excluded_method: "Called via metaprogramming"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+        strategy = Keela::Strategies::Methods.new
+        scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+        definitions = [
+          { name: "excluded_method", file: "app/models/user.rb" },
+          { name: "kept_method", file: "app/models/user.rb" }
+        ]
+
+        result = scanner.send(:filter_excluded, definitions)
+
+        assert_equal 1, result.size
+        assert_equal "kept_method", result.first[:name]
+      end
+    end
+  end
+
+  def test_filter_excluded_strategy_aware_only_excludes_matching_strategy
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        # Same name excluded for scopes, but NOT for methods
+        excluded_content = <<~YAML
+          scopes:
+            "app/models/user.rb":
+              - active: "Used dynamically"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+
+        # Methods strategy should NOT exclude 'active'
+        methods_strategy = Keela::Strategies::Methods.new
+        methods_scanner = Keela::Scanner.new(strategy: methods_strategy, configuration: config)
+
+        definitions = [{ name: "active", file: "app/models/user.rb" }]
+        result = methods_scanner.send(:filter_excluded, definitions)
+
+        assert_equal 1, result.size, "Methods strategy should not exclude 'active' when only scopes has it excluded"
+
+        # Scopes strategy SHOULD exclude 'active'
+        scopes_strategy = Keela::Strategies::Scopes.new
+        scopes_scanner = Keela::Scanner.new(strategy: scopes_strategy, configuration: config)
+
+        result = scopes_scanner.send(:filter_excluded, definitions)
+
+        assert_equal 0, result.size, "Scopes strategy should exclude 'active'"
+      end
+    end
+  end
+
+  def test_filter_excluded_strategy_aware_with_multiple_strategies
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        # Different exclusions for different strategies
+        excluded_content = <<~YAML
+          methods:
+            "app/models/user.rb":
+              - method_only: "Excluded for methods"
+          scopes:
+            "app/models/user.rb":
+              - scope_only: "Excluded for scopes"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+
+        definitions = [
+          { name: "method_only", file: "app/models/user.rb" },
+          { name: "scope_only", file: "app/models/user.rb" },
+          { name: "neither", file: "app/models/user.rb" }
+        ]
+
+        # Methods strategy excludes method_only, keeps scope_only and neither
+        methods_scanner = Keela::Scanner.new(
+          strategy: Keela::Strategies::Methods.new,
+          configuration: config
+        )
+        result = methods_scanner.send(:filter_excluded, definitions)
+        names = result.map { |d| d[:name] }
+
+        assert_equal 2, result.size
+        assert_includes names, "scope_only"
+        assert_includes names, "neither"
+        refute_includes names, "method_only"
+
+        # Scopes strategy excludes scope_only, keeps method_only and neither
+        scopes_scanner = Keela::Scanner.new(
+          strategy: Keela::Strategies::Scopes.new,
+          configuration: config
+        )
+        result = scopes_scanner.send(:filter_excluded, definitions)
+        names = result.map { |d| d[:name] }
+
+        assert_equal 2, result.size
+        assert_includes names, "method_only"
+        assert_includes names, "neither"
+        refute_includes names, "scope_only"
+      end
+    end
+  end
+
+  def test_filter_excluded_returns_all_definitions_when_no_exclusion_file
+    config = Keela::Configuration.new
+    # No excluded_path set, no default files exist
+    scanner = Keela::Scanner.new(strategy: @strategy, configuration: config)
+
+    definitions = [
+      { name: "method_a", file: "app/models/user.rb" },
+      { name: "method_b", file: "app/models/user.rb" }
+    ]
+
+    result = scanner.send(:filter_excluded, definitions)
+
+    assert_equal 2, result.size
+  end
+
   # resolve_baseline_path tests
 
   def test_resolve_baseline_path_returns_configured_path_when_file_exists

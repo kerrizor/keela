@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Strategy-aware exclusion file format** - Exclusion files can now be organized by strategy (methods, scopes, etc.) to match the baseline file format. This allows excluding the same name in one strategy while flagging it in another. The legacy flat format is still supported for backward compatibility.
+
 ## [0.2.3] - 2026-07-31
 
 ### Fixed
