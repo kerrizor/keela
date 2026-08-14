@@ -66,6 +66,27 @@ If a `.keela_baseline.yml` file exists, Keela compares the current scan against 
 
 This lets you gradually pay down tech debt while preventing new dead code from sneaking in.
 
+The baseline file is organized by strategy:
+
+```yaml
+# .keela_baseline.yml
+methods:
+  app/models/user.rb:
+    - legacy_method
+    - old_callback
+  app/helpers/application_helper.rb:
+    - unused_helper
+scopes:
+  app/models/user.rb:
+    - inactive
+    - archived
+constants:
+  app/models/user.rb:
+    - OLD_STATUS
+```
+
+**Note:** The baseline file only stores names, not line numbers. This prevents false positives when code moves within a file.
+
 ### Report Mode
 
 If no baseline exists (or you use `--report`), Keela shows all unused code:
