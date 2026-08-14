@@ -18,12 +18,15 @@ module Keela
       end
 
       def usage_regex(name)
+        method_name = Regexp.quote(name.sub(/^self\./, ""))
+
         if name.end_with?("=")
           # Setter method: match assignment usage
-          /(?<!def )#{Regexp.quote(name.sub(/^self\./, "").chomp("="))}\W=*/
+          /(?<!def |def self\.)#{method_name.chomp("=")}\W=*/
         else
           # Regular method: match calls
-          /(?<!def )#{Regexp.quote(name.sub(/^self\./, ""))}\W/
+          # Exclude both "def foo" and "def self.foo" definitions
+          /(?<!def |def self\.)#{method_name}\W/
         end
       end
 

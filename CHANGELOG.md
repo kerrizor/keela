@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Multi-method delegate declarations now detect all methods, not just the first ([#51](https://github.com/kerrizor/keela/pull/51))
+- Class methods (`def self.foo`) are now correctly detected as unused ([#60](https://github.com/kerrizor/keela/pull/60))
 
 ## [0.3.0] - 2026-08-05
 

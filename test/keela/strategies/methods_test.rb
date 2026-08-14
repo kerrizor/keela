@@ -99,3 +99,39 @@ class MethodsStrategyTest < Minitest::Test
     assert_match regex, "Model.create("
   end
 end
+
+class MethodsSelfMethodTest < Minitest::Test
+  def setup
+    @strategy = Keela::Strategies::Methods.new
+  end
+
+  def test_extract_definition_captures_self_methods
+    assert_equal "self.class_method", @strategy.extract_definition("def self.class_method")
+    assert_equal "self.class_method", @strategy.extract_definition("  def self.class_method(arg)")
+  end
+
+  def test_usage_regex_excludes_self_method_definitions
+    regex = @strategy.usage_regex("self.class_method")
+
+    # Should NOT match definitions
+    refute regex.match?("def self.class_method")
+    refute regex.match?("  def self.class_method(arg)")
+
+    # Should match actual usage
+    assert regex.match?("User.class_method()")
+    assert regex.match?("self.class_method()")
+    assert regex.match?("result = class_method()")
+  end
+
+  def test_usage_regex_excludes_regular_method_definitions
+    regex = @strategy.usage_regex("instance_method")
+
+    # Should NOT match definitions
+    refute regex.match?("def instance_method")
+    refute regex.match?("  def instance_method(arg)")
+
+    # Should match actual usage
+    assert regex.match?("obj.instance_method()")
+    assert regex.match?("instance_method()")
+  end
+end
