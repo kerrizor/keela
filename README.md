@@ -226,9 +226,38 @@ include_patterns:
 
 excluded_path: ".keela_excluded.yml"
 baseline_path: ".keela_baseline.yml"
+
+# Per-strategy configuration
+strategies:
+  methods:
+    definition_paths:
+      - app/helpers
+      - app/models
+      - lib/
 ```
 
 Keela automatically loads `keela.yml` or `.keela.yml` from the current directory. Use `--config` to specify a different path.
+
+### Customizing Definition Paths Per Strategy
+
+By default, each strategy looks for definitions in specific directories (e.g., `methods` looks in `app/helpers` and `app/models`). You can customize this per-strategy:
+
+```yaml
+# keela.yml
+strategies:
+  methods:
+    definition_paths:
+      - app/helpers
+      - app/models
+      - lib/
+      - ee/app/models
+  scopes:
+    definition_paths:
+      - app/models
+      - ee/app/models
+```
+
+This is useful when your project has code in non-standard locations (like `lib/` or enterprise edition directories) that you want Keela to check for unused definitions.
 
 ### Customizing Which Files to Scan
 

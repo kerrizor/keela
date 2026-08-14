@@ -7,7 +7,7 @@ module Keela
         "constants"
       end
 
-      def definition_file_pattern
+      def default_definition_file_pattern
         # Match app/ and lib/ directories, but exclude spec/ and test/
         %r{(?:^|/)(?:ee/)?(?:app|lib)/}
       end

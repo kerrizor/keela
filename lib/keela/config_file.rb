@@ -17,6 +17,7 @@ module Keela
   #   - excluded_path: Path to YAML file of excluded items
   #   - baseline_path: Path to baseline YAML file
   #   - required_directory: Directory that must exist for scanning to proceed
+  #   - strategies: Per-strategy configuration (see below)
   #
   # Example:
   #   # keela.yml
@@ -29,6 +30,15 @@ module Keela
   #     - rb
   #     - haml
   #     - erb
+  #   strategies:
+  #     methods:
+  #       definition_paths:
+  #         - app/helpers
+  #         - app/models
+  #         - lib/
+  #     scopes:
+  #       definition_paths:
+  #         - app/models
   #
   module ConfigFile
     CONFIG_FILENAMES = %w[.keela/config.yml keela.yml .keela.yml].freeze
@@ -74,6 +84,15 @@ module Keela
           value = config[key]
           configuration.public_send("#{key}=", value)
         end
+
+        apply_strategy_options(config["strategies"]) if config.key?("strategies")
+      end
+
+      def apply_strategy_options(strategies)
+        return unless strategies.is_a?(Hash)
+
+        configuration = Keela.configuration
+        configuration.strategy_options = strategies
       end
     end
   end

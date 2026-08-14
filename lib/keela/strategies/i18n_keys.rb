@@ -22,7 +22,7 @@ module Keela
         "i18n_keys"
       end
 
-      def definition_file_pattern
+      def default_definition_file_pattern
         # Match locale YAML files
         %r{config/locales/.*\.ya?ml$}
       end
