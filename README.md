@@ -74,6 +74,32 @@ If no baseline exists (or you use `--report`), Keela shows all unused code:
 keela --report
 ```
 
+## What "Unused" Means
+
+Keela defines "unused" as **unused in production code** — not just unused anywhere.
+
+By default, Keela scans `app/`, `lib/`, and `config/` directories. It intentionally
+excludes `spec/` and `test/` directories because:
+
+1. **Tests aren't usage** — Code that only exists to be tested isn't providing
+   application value. If you delete the unused code, you delete its tests too.
+
+2. **Tests can cover dead code** — A method with 100% test coverage can still be
+   dead if nothing in the application calls it.
+
+3. **Cleaner signal** — Including test files would hide genuinely unused code
+   behind "but it has tests!" false negatives.
+
+If Keela flags something that's only used in tests, consider whether the code
+(and its tests) can be removed entirely. If the code is intentionally test-only
+(e.g., test helpers defined in `app/`), add it to your exclusion file.
+
+To include test directories in usage scanning (not recommended), use `--include`:
+
+```bash
+keela --include 'test/**/*.rb' --include 'spec/**/*.rb'
+```
+
 ## Command Line Options
 
 ```bash
