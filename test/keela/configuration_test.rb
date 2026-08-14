@@ -92,4 +92,13 @@ class ConfigurationTest < Minitest::Test
     @config.verbose = true
     assert @config.verbose
   end
+
+  def test_default_source_location_is_false
+    refute @config.source_location
+  end
+
+  def test_source_location_is_configurable
+    @config.source_location = true
+    assert @config.source_location
+  end
 end

@@ -147,6 +147,9 @@ keela -q
 # Show verbose debugging output (files scanned, patterns used)
 keela --verbose
 
+# Show source location (file:line) for each unused item
+keela --source-location
+
 # Show version
 keela --version
 ```

@@ -29,6 +29,9 @@ module Keela
     # Whether to show verbose debugging output
     attr_accessor :verbose
 
+    # Whether to show source location (file:line) in reports
+    attr_accessor :source_location
+
     def initialize
       @extensions = %w[rb haml erb].freeze
       @directory_patterns = %w[
@@ -43,6 +46,7 @@ module Keela
       @exclude_patterns = []
       @include_patterns = []
       @verbose = false
+      @source_location = false
     end
   end
 end
