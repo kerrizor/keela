@@ -43,7 +43,7 @@ OptionParser.new do |opts|
     options[:update_baseline] = true
   end
 
-  opts.on("--format FORMAT", %i[text json], "Output format: text (default) or json") do |format|
+  opts.on("--format FORMAT", %i[text json toon], "Output format: text (default), json, or toon") do |format|
     options[:format] = format
   end
 
@@ -209,8 +209,8 @@ end
 success = true
 results = {}
 
-json_mode = options[:format] == :json
-silent_output = json_mode || options[:quiet]
+structured_output = Keela::Formatters.structured_format?(options[:format])
+silent_output = structured_output || options[:quiet]
 
 strategies.each_with_index do |strategy, index|
   unless silent_output
@@ -224,7 +224,7 @@ strategies.each_with_index do |strategy, index|
     silent: silent_output
   )
 
-  # Collect results for JSON output
+  # Collect results for structured output formats
   results[strategy.name] = scanner.unused_collection.transform_values(&:to_a)
 
   unless silent_output
@@ -238,23 +238,11 @@ if options[:update_baseline]
   puts Rainbow("Updated #{baseline.path}").green.bright unless silent_output
 end
 
-# Output JSON if requested
-if json_mode
-  require "json"
-
-  total = results.values.flat_map(&:values).flatten.size
-  by_strategy = results.transform_values { |files| files.values.flatten.size }
-
-  output = {
-    strategies: strategies.map(&:name),
-    unused: results.reject { |_, v| v.empty? },
-    summary: {
-      total: total,
-      by_strategy: by_strategy.reject { |_, v| v.zero? }
-    }
-  }
-
-  puts JSON.pretty_generate(output)
+# Output structured format if requested
+if structured_output
+  formatter_class = Keela::Formatters.for(options[:format])
+  formatter = formatter_class.new(results: results, strategies: strategies)
+  puts formatter.format
 end
 
 exit(success ? 0 : 1)

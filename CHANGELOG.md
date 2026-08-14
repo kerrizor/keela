@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Verbose mode** via `--verbose` flag to show files being scanned, glob patterns, and configuration for debugging ([#53](https://github.com/kerrizor/keela/pull/53))
 - **Source location** via `--source-location` flag to show line numbers in reports for easier navigation ([#55](https://github.com/kerrizor/keela/pull/55))
 - **Exclusion validation** via `--test-exclusions` flag to find stale entries in exclusion files ([#56](https://github.com/kerrizor/keela/pull/56))
+- **TOON output format** via `--format toon` for token-efficient LLM-friendly output ([#58](https://github.com/kerrizor/keela/pull/58))
 
 ### Changed
 

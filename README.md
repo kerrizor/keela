@@ -294,13 +294,16 @@ The workflow:
 2. **CI runs**: `keela` compares against baseline, fails on new dead code
 3. **After cleanup**: Run `keela --update-baseline` to update the baseline
 
-### JSON Output
+### Structured Output Formats
 
-Use `--format json` for machine-readable output:
+Use `--format` for machine-readable output:
 
 ```bash
-keela --format json --report
+keela --format json --report   # JSON output
+keela --format toon --report   # TOON output (token-efficient for LLMs)
 ```
+
+#### JSON
 
 ```json
 {
@@ -323,7 +326,25 @@ keela --format json --report
 }
 ```
 
-This is useful for integrating with other tools, generating reports, or processing results programmatically.
+#### TOON
+
+[TOON (Token-Oriented Object Notation)](https://toonformat.dev/) is a compact format optimized for LLM prompts, using ~40-50% fewer tokens than JSON:
+
+```
+strategies[2]: methods,scopes
+unused:
+  methods:
+    "app/models/user.rb"[2]: unused_method,old_helper
+  scopes:
+    "app/models/post.rb"[1]: inactive
+summary:
+  total: 3
+  by_strategy:
+    methods: 2
+    scopes: 1
+```
+
+These formats are useful for integrating with other tools, generating reports, processing results programmatically, or including in LLM context windows.
 
 ## Exclusion File
 
