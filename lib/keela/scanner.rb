@@ -158,8 +158,9 @@ module Keela
         lines.flat_map do |line|
           next [] if strategy.skip_comments? && line.strip.start_with?("#")
 
-          name = strategy.extract_definition(line)
-          name ? [{ name: name, file: filename }] : []
+          result = strategy.extract_definition(line)
+          # Support both single name (String) and multiple names (Array)
+          Array(result).compact.map { |name| { name: name, file: filename } }
         end
       end
     end

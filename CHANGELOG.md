@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Multi-method delegate declarations now detect all methods, not just the first ([#51](https://github.com/kerrizor/keela/pull/51))
+
 ## [0.3.0] - 2026-08-05
 
 ### Added

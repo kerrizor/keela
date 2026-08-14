@@ -64,23 +64,20 @@ class DelegationsStrategyTest < Minitest::Test
   end
 
   # extract_definition tests - multiple methods
-  # Note: When multiple methods are delegated on one line, we return the first one.
-  # This is a limitation - ideally we'd return all, but the scanner expects single values.
 
-  def test_extracts_multiple_delegations_returns_first
-    # When multiple methods are delegated on one line, we return the first
+  def test_extracts_multiple_delegations
     result = @strategy.extract_definition("delegate :name, :email, to: :user")
-    assert_equal "name", result
+    assert_equal %w[name email], result
   end
 
-  def test_extracts_multiple_delegations_with_prefix_returns_first
+  def test_extracts_multiple_delegations_with_prefix
     result = @strategy.extract_definition("delegate :name, :email, to: :user, prefix: true")
-    assert_equal "user_name", result
+    assert_equal %w[user_name user_email], result
   end
 
-  def test_extracts_multiple_delegations_with_custom_prefix_returns_first
+  def test_extracts_multiple_delegations_with_custom_prefix
     result = @strategy.extract_definition("delegate :name, :email, to: :user, prefix: :owner")
-    assert_equal "owner_name", result
+    assert_equal %w[owner_name owner_email], result
   end
 
   # extract_definition tests - edge cases
