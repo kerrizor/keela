@@ -184,9 +184,10 @@ success = true
 results = {}
 
 json_mode = options[:format] == :json
+silent_output = json_mode || options[:quiet]
 
 strategies.each_with_index do |strategy, index|
-  unless json_mode
+  unless silent_output
     puts Rainbow("=== Sniffing for unused #{strategy.name} ===").cyan.bright if strategies.size > 1
   end
 
@@ -194,13 +195,13 @@ strategies.each_with_index do |strategy, index|
   success &&= scanner.run(
     force_report: options[:force_report],
     update_baseline: options[:update_baseline],
-    silent: json_mode
+    silent: silent_output
   )
 
   # Collect results for JSON output
   results[strategy.name] = scanner.unused_collection.transform_values(&:to_a)
 
-  unless json_mode
+  unless silent_output
     puts if strategies.size > 1 && index < strategies.size - 1
   end
 end
@@ -208,7 +209,7 @@ end
 # Save baseline after all strategies have run
 if options[:update_baseline]
   baseline.save
-  puts Rainbow("Updated #{baseline.path}").green.bright unless json_mode
+  puts Rainbow("Updated #{baseline.path}").green.bright unless silent_output
 end
 
 # Output JSON if requested

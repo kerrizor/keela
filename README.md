@@ -140,7 +140,7 @@ keela --config path/to/keela.yml
 # Output as JSON (for CI integrations)
 keela --format json
 
-# Suppress progress bar (useful for CI and scripting)
+# Suppress all output (useful for CI and scripting, rely on exit code)
 keela --quiet
 keela -q
 
