@@ -144,6 +144,9 @@ keela --format json
 keela --quiet
 keela -q
 
+# Show verbose debugging output (files scanned, patterns used)
+keela --verbose
+
 # Show version
 keela --version
 ```

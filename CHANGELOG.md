@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Verbose mode** via `--verbose` flag to show files being scanned, glob patterns, and configuration for debugging ([#53](https://github.com/kerrizor/keela/pull/53))
+
 ### Fixed
 
 - Multi-method delegate declarations now detect all methods, not just the first ([#51](https://github.com/kerrizor/keela/pull/51))
