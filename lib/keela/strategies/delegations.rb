@@ -7,7 +7,7 @@ module Keela
         "delegations"
       end
 
-      def definition_file_pattern
+      def default_definition_file_pattern
         # Match app/models/ directories (including concerns), but exclude spec/test
         %r{(?:^|/)(?:ee/)?app/models/}
       end

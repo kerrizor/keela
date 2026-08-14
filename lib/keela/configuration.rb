@@ -32,6 +32,12 @@ module Keela
     # Whether to show source location (file:line) in reports
     attr_accessor :source_location
 
+    # Per-strategy configuration options
+    # Hash of strategy_name => { option => value }
+    # Supported options:
+    #   - definition_file_pattern: Regex pattern string for files containing definitions
+    attr_accessor :strategy_options
+
     def initialize
       @extensions = %w[rb haml erb].freeze
       @directory_patterns = %w[
@@ -47,6 +53,12 @@ module Keela
       @include_patterns = []
       @verbose = false
       @source_location = false
+      @strategy_options = {}
+    end
+
+    # Get options for a specific strategy
+    def options_for(strategy_name)
+      strategy_options[strategy_name.to_s] || {}
     end
   end
 end

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Source location** via `--source-location` flag to show line numbers in reports for easier navigation ([#55](https://github.com/kerrizor/keela/pull/55))
 - **Exclusion validation** via `--test-exclusions` flag to find stale entries in exclusion files ([#56](https://github.com/kerrizor/keela/pull/56))
 - **TOON output format** via `--format toon` for token-efficient LLM-friendly output ([#58](https://github.com/kerrizor/keela/pull/58))
+- **Configurable definition paths** per strategy via `strategies.<name>.definition_paths` in config file ([#59](https://github.com/kerrizor/keela/pull/59))
 
 ### Changed
 

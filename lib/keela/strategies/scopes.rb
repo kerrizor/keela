@@ -7,7 +7,7 @@ module Keela
         "scopes"
       end
 
-      def definition_file_pattern
+      def default_definition_file_pattern
         %r{app/models}
       end
 
