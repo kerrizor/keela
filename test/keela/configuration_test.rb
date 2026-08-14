@@ -83,4 +83,13 @@ class ConfigurationTest < Minitest::Test
     @config.include_patterns = %w[engines/**/*.%<ext>s custom/**/*.%<ext>s]
     assert_equal %w[engines/**/*.%<ext>s custom/**/*.%<ext>s], @config.include_patterns
   end
+
+  def test_default_verbose_is_false
+    refute @config.verbose
+  end
+
+  def test_verbose_is_configurable
+    @config.verbose = true
+    assert @config.verbose
+  end
 end

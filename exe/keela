@@ -82,6 +82,10 @@ OptionParser.new do |opts|
     options[:quiet] = true
   end
 
+  opts.on("--verbose", "Show detailed debugging output (files scanned, patterns used)") do
+    options[:verbose] = true
+  end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
@@ -98,6 +102,9 @@ end
 
 # Apply quiet mode if requested
 Keela.configuration.show_progress = false if options[:quiet]
+
+# Apply verbose mode if requested
+Keela.configuration.verbose = true if options[:verbose]
 
 # Set default baseline path if not specified
 Keela.configuration.baseline_path ||= ".keela_baseline.yml"
@@ -140,6 +147,38 @@ baseline = Keela::Baseline.new(Keela.configuration.baseline_path)
 
 # Load source files once and share across all strategies
 source_files = Keela::Scanner.load_source_files
+
+# Show verbose output if requested
+if options[:verbose]
+  config = Keela.configuration
+  globs = Keela::Scanner.build_file_globs(config)
+
+  puts Rainbow("=== Verbose Mode ===").magenta.bright
+  puts
+  puts Rainbow("Configuration:").yellow
+  puts "  Extensions: #{config.extensions.join(', ')}"
+  puts "  Directory patterns: #{config.directory_patterns.join(', ')}"
+  puts "  Include patterns: #{config.include_patterns.empty? ? '(none)' : config.include_patterns.join(', ')}"
+  puts "  Exclude patterns: #{config.exclude_patterns.empty? ? '(none)' : config.exclude_patterns.join(', ')}"
+  puts
+  puts Rainbow("Resolved globs:").yellow
+  globs.each { |g| puts "  #{g}" }
+  puts
+  sorted_files = source_files.keys.sort
+  file_count = sorted_files.size
+  max_display = 50
+
+  puts Rainbow("Files to scan (#{file_count}):").yellow
+  # Show all files when piping (not a TTY), truncate for interactive use
+  if file_count <= max_display || !$stdout.tty?
+    sorted_files.each { |f| puts "  #{f}" }
+  else
+    sorted_files.first(max_display).each { |f| puts "  #{f}" }
+    puts "  ... and #{file_count - max_display} more files"
+    puts "  (pipe output to see full list: keela --verbose > files.txt)"
+  end
+  puts
+end
 
 success = true
 results = {}

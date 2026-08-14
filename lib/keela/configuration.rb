@@ -26,6 +26,9 @@ module Keela
     # Additional directory patterns to include (added to directory_patterns)
     attr_accessor :include_patterns
 
+    # Whether to show verbose debugging output
+    attr_accessor :verbose
+
     def initialize
       @extensions = %w[rb haml erb].freeze
       @directory_patterns = %w[
@@ -39,6 +42,7 @@ module Keela
       @show_progress = true
       @exclude_patterns = []
       @include_patterns = []
+      @verbose = false
     end
   end
 end
