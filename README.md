@@ -150,6 +150,9 @@ keela --verbose
 # Show source location (file:line) for each unused item
 keela --source-location
 
+# Validate exclusion file entries (find stale exclusions)
+keela --test-exclusions
+
 # Show version
 keela --version
 ```
