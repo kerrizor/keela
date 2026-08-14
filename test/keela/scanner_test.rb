@@ -814,4 +814,61 @@ class ScannerConfigurationValidationTest < Minitest::Test
   end
 end
 
+class ScannerMultiMethodDelegateTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.remove_entry(@tmpdir)
+  end
+
+  def test_detects_all_unused_methods_in_multi_method_delegate
+    File.write("app/models/order.rb", <<~RUBY)
+      class Order
+        delegate :name, :email, :phone, to: :user
+      end
+    RUBY
+
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Delegations.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true, silent: true)
+
+    unused = scanner.unused_collection["app/models/order.rb"]
+    assert_includes unused, "name"
+    assert_includes unused, "email"
+    assert_includes unused, "phone"
+  end
+
+  def test_detects_only_unused_methods_when_some_are_used
+    File.write("app/models/order.rb", <<~RUBY)
+      class Order
+        delegate :name, :email, :phone, to: :user
+
+        def display
+          name
+        end
+      end
+    RUBY
+
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Delegations.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true, silent: true)
+
+    unused = scanner.unused_collection["app/models/order.rb"]
+    refute_includes unused, "name"
+    assert_includes unused, "email"
+    assert_includes unused, "phone"
+  end
+end
+
 

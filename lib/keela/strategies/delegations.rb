@@ -44,12 +44,8 @@ module Keela
           methods = methods.map { |m| "#{prefix}_#{m}" }
         end
 
-        # Return single string for single method (scanner expects this)
-        # For multiple methods, return first one only
-        # The scanner will create one definition entry per extract_definition call
-        # To handle multiple delegations per line, we'd need to change the scanner
-        # For now, return just the first method
-        methods.first
+        # Return all methods (scanner handles both single string and array)
+        methods.length == 1 ? methods.first : methods
       end
 
       def usage_regex(name)
