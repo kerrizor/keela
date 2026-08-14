@@ -90,6 +90,10 @@ OptionParser.new do |opts|
     options[:source_location] = true
   end
 
+  opts.on("--test-exclusions", "Validate that exclusion file entries match actual definitions") do
+    options[:test_exclusions] = true
+  end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
@@ -115,6 +119,21 @@ Keela.configuration.source_location = true if options[:source_location]
 
 # Set default baseline path if not specified
 Keela.configuration.baseline_path ||= ".keela_baseline.yml"
+
+# Handle --test-exclusions mode
+if options[:test_exclusions]
+  excluded_path = Keela.configuration.excluded_path ||
+                  Keela::Scanner::DEFAULT_EXCLUDED_PATHS.find { |p| File.exist?(p) }
+
+  unless excluded_path
+    warn "Error: No exclusion file found. Specify with --excluded PATH"
+    exit 1
+  end
+
+  validator = Keela::ExclusionValidator.new(excluded_path)
+  success = validator.validate
+  exit(success ? 0 : 1)
+end
 
 STRATEGY_MAP = {
   methods: Keela::Strategies::Methods,

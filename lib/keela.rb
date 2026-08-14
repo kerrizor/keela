@@ -13,6 +13,7 @@ require_relative "keela/strategies/i18n_keys"
 require_relative "keela/reporter"
 require_relative "keela/baseline"
 require_relative "keela/scanner"
+require_relative "keela/exclusion_validator"
 
 module Keela
   class Error < StandardError; end
