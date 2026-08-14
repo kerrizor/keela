@@ -29,12 +29,12 @@ class CLITest < Minitest::Test
       YAML
 
       # Run without CLI override - should find unused_method
-      stdout, stderr, status = run_keela("--report", "--quiet")
+      stdout, stderr, status = run_keela("--report")
       assert status.success?, "Command should succeed: #{stderr}"
       assert_match(/unused_method/, stdout, "Should find unused_method when using config file exclusions")
 
       # Run with CLI override - should NOT find unused_method
-      stdout, stderr, status = run_keela("--report", "--quiet", "--excluded", "cli_excluded.yml")
+      stdout, stderr, status = run_keela("--report", "--excluded", "cli_excluded.yml")
       assert status.success?, "Command should succeed: #{stderr}"
       assert_match(/No unused methods/, stdout, "Should not find unused_method when CLI excludes it")
     end
@@ -81,12 +81,12 @@ class CLITest < Minitest::Test
       YAML
 
       # Run without CLI override - should find nothing (no .txt files)
-      stdout, stderr, status = run_keela("--report", "--quiet")
+      stdout, stderr, status = run_keela("--report")
       assert status.success?, "Command should succeed: #{stderr}"
       assert_match(/No unused methods/, stdout, "Should find nothing when config limits to .txt")
 
       # Run with CLI override - should find unused_method
-      stdout, stderr, status = run_keela("--report", "--quiet", "--extensions", "rb")
+      stdout, stderr, status = run_keela("--report", "--extensions", "rb")
       assert status.success?, "Command should succeed: #{stderr}"
       assert_match(/unused_method/, stdout, "Should find unused_method when CLI sets .rb extension")
     end
