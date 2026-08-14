@@ -11,12 +11,12 @@ module Keela
       @strategy_name = strategy_name
     end
 
-    def print_full_report(unused_collection, elapsed_time)
+    def print_full_report(unused_collection, elapsed_time, source_locations: {})
       unused_count = unused_collection.values.flatten.size
 
       if unused_count > 0
         puts "\nFound #{unused_count} unused #{strategy_name}:\n\n"
-        puts format_yaml(unused_collection)
+        puts format_report(unused_collection, source_locations)
         puts "\n"
       else
         puts Rainbow("No unused #{strategy_name} were found.").green.bright
@@ -25,8 +25,8 @@ module Keela
       puts "Finished in #{elapsed_time.round(2)} seconds."
     end
 
-    def print_diff_report(new_unused, removed, excluded_path:, baseline_path:)
-      print_new_unused(new_unused, excluded_path) unless new_unused.empty?
+    def print_diff_report(new_unused, removed, excluded_path:, baseline_path:, source_locations: {})
+      print_new_unused(new_unused, excluded_path, source_locations) unless new_unused.empty?
 
       if new_unused.size + removed.size > 0
         puts Rainbow("~" * 80).white.bright
@@ -36,13 +36,42 @@ module Keela
       print_removed(removed, baseline_path) unless removed.empty?
     end
 
+    def format_report(collection, source_locations = {})
+      if source_locations.empty?
+        format_yaml(collection)
+      else
+        format_with_locations(collection, source_locations)
+      end
+    end
+
     def format_yaml(collection)
       indent_yaml_list_items(collection.sort.to_h.to_yaml)
     end
 
     private
 
-    def print_new_unused(new_unused, excluded_path)
+    def format_with_locations(collection, source_locations)
+      # Calculate max name length for alignment
+      all_names = collection.values.flatten
+      max_name_len = all_names.map(&:length).max || 0
+      padding = max_name_len + 6  # "  - " prefix + 2 spaces
+
+      lines = ["---"]
+      collection.sort.each do |file, names|
+        lines << "#{file}:"
+        names.each do |name|
+          line_num = source_locations["#{file}:#{name}"]
+          if line_num
+            lines << "  - #{name}".ljust(padding) + "#{file}:#{line_num}"
+          else
+            lines << "  - #{name}"
+          end
+        end
+      end
+      lines.join("\n")
+    end
+
+    def print_new_unused(new_unused, excluded_path, source_locations = {})
       error = <<~MESSAGE
         We have detected #{new_unused.size} newly unused #{strategy_name}.
 
@@ -50,7 +79,7 @@ module Keela
       MESSAGE
 
       puts Rainbow(error).red.bright
-      puts Rainbow(format_yaml(parse_diff(new_unused))).red.bright
+      puts Rainbow(format_report(parse_diff(new_unused), source_locations)).red.bright
     end
 
     def print_removed(removed, baseline_path)

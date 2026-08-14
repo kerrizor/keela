@@ -5,7 +5,7 @@ require "yaml"
 
 module Keela
   class Scanner
-    attr_reader :strategy, :configuration, :baseline, :source_files, :unused_collection, :new_unused, :removed
+    attr_reader :strategy, :configuration, :baseline, :source_files, :unused_collection, :source_locations, :new_unused, :removed
 
     DEFAULT_EXCLUDED_PATHS = [".keela/excluded.yml", "keela_excluded.yml"].freeze
     DEFAULT_BASELINE_PATHS = [".keela/baseline.yml", "keela_baseline.yml"].freeze
@@ -48,6 +48,7 @@ module Keela
       @source_files = source_files || {}
       @source_files_preloaded = !source_files.nil?
       @unused_collection = Hash.new { |hash, key| hash[key] = [] }
+      @source_locations = {}  # { "file:name" => line_number }
       @new_unused = []
       @removed = []
     end
@@ -70,7 +71,7 @@ module Keela
 
       if report_mode
         elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
-        reporter.print_full_report(unused_collection, elapsed) unless silent
+        reporter.print_full_report(unused_collection, elapsed, source_locations: source_locations) unless silent
         if update_baseline
           baseline.set(strategy.name, unused_collection)
           # Note: caller is responsible for calling baseline.save after all strategies run
@@ -85,7 +86,8 @@ module Keela
           new_unused,
           removed,
           excluded_path: resolve_excluded_path || ".keela/excluded.yml",
-          baseline_path: baseline.path
+          baseline_path: baseline.path,
+          source_locations: source_locations
         )
       end
 
@@ -155,12 +157,17 @@ module Keela
         next custom_definitions if custom_definitions
 
         # Default: line-by-line parsing
-        lines.flat_map do |line|
+        track_lines = configuration.source_location
+        lines.each_with_index.flat_map do |line, index|
           next [] if strategy.skip_comments? && line.strip.start_with?("#")
 
           result = strategy.extract_definition(line)
           # Support both single name (String) and multiple names (Array)
-          Array(result).compact.map { |name| { name: name, file: filename } }
+          Array(result).compact.map do |name|
+            definition = { name: name, file: filename }
+            definition[:line] = index + 1 if track_lines
+            definition
+          end
         end
       end
     end
@@ -212,6 +219,9 @@ module Keela
 
       unused.each do |unused_def|
         @unused_collection[unused_def[:file]] << unused_def[:name]
+        if unused_def[:line]
+          @source_locations["#{unused_def[:file]}:#{unused_def[:name]}"] = unused_def[:line]
+        end
       end
     end
 
