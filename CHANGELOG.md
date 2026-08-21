@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Constants used as hash keys (`CONST => value`) or in rescue splats (`rescue *ERRORS => e`) are now correctly detected as used ([#63](https://github.com/kerrizor/keela/pull/63))
+
 ## [0.4.0] - 2026-08-14
 
 ### Added
