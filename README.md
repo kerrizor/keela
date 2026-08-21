@@ -199,10 +199,12 @@ Run all strategies (default) or target specific ones with `--type`.
 
 The `i18n_keys` strategy is **beta** and may produce false positives. It cannot detect:
 
-- **Lazy lookup** - `t('.title')` in views resolves based on the view path
 - **Dynamic keys** - `t("users.#{action}.title")` with interpolated segments
 - **Model translations** - `User.human_attribute_name(:email)` and `User.model_name.human`
-- **Pluralization siblings** - If `one:` is used, `other:` may appear unused
+
+The following patterns ARE now supported:
+- **Lazy lookup** - `t('.title')` in views resolves based on the view path
+- **Pluralization siblings** - `t('key', count: n)` marks all plural forms as used
 
 Review results carefully and use the exclusion file for known false positives.
 

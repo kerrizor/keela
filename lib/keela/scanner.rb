@@ -210,9 +210,16 @@ module Keela
     def find_unused(definitions, show_progress: false)
       source_code = source_files.values.flatten.join
 
+      # Get additional used names from strategy-specific detection
+      # (e.g., I18n lazy lookup)
+      additional_used = strategy.additional_used_names(source_files)
+
       progress_label = show_progress ? "Checking #{strategy.name}" : nil
 
       unused = Parallel.flat_map(definitions, progress: progress_label) do |definition|
+        # Check if marked as used by additional detection
+        next [] if additional_used.include?(definition[:name])
+
         regex = strategy.usage_regex(definition[:name])
         regex.match?(source_code) ? [] : definition
       end

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Constants used as hash keys (`CONST => value`) or in rescue splats (`rescue *ERRORS => e`) are now correctly detected as used ([#63](https://github.com/kerrizor/keela/pull/63))
 - Methods referenced as literal symbols (`:method_name`) are now detected as used, including Rails callbacks, `send(:method)`, `validate :method`, etc. ([#64](https://github.com/kerrizor/keela/issues/64))
 - I18n pluralization keys (`one`, `other`, `zero`, etc.) are now detected as used when the parent key is called with `t('key', count: n)` ([#69](https://github.com/kerrizor/keela/pull/69))
+- I18n lazy lookup (`t('.title')` in views) now correctly resolves to the full key based on the view path ([#17](https://github.com/kerrizor/keela/issues/17))
 
 ## [0.4.0] - 2026-08-14
 
