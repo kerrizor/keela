@@ -15,9 +15,13 @@ module Keela
     #   - t(:key)
     #   - .human_attribute_name(:attr)
     #
+    # Pluralization keys (zero, one, two, few, many, other) are grouped:
+    # if t("items.count", count: n) is called, all siblings are considered used.
+    #
     # Note: Lazy lookup (t('.title') in views) is not yet supported.
     #
     class I18nKeys < Strategy
+      PLURAL_SUFFIXES = %w[zero one two few many other].freeze
       def name
         "i18n_keys"
       end
@@ -32,10 +36,19 @@ module Keela
         return [] unless File.exist?(filepath)
 
         content = YAML.load_file(filepath, permitted_classes: [Symbol]) || {}
-        flatten_keys(content).map do |key|
+        keys = flatten_keys(content).map do |key|
           # Remove the locale prefix (e.g., "en.users.show" -> "users.show")
-          key_without_locale = key.sub(/^[a-z]{2}(-[A-Z]{2})?\./, "")
-          { name: key_without_locale, file: filepath }
+          key.sub(/^[a-z]{2}(-[A-Z]{2})?\./, "")
+        end
+
+        # For pluralization keys, also add the parent key so that
+        # t("items.count", count: n) marks all siblings as used
+        parent_keys = keys.filter_map do |key|
+          parent_key_for_pluralization(key)
+        end.uniq
+
+        (keys + parent_keys).uniq.map do |key|
+          { name: key, file: filepath }
         end
       rescue Psych::SyntaxError => e
         warn "Warning: Could not parse #{filepath}: #{e.message}"
@@ -55,12 +68,20 @@ module Keela
         #   t('users.show.title')
         #   t(:users_show_title) - symbol form (underscored)
         #
-        # Also match partial keys for lazy lookup support:
-        #   t(".title") in a view could match "users.show.title"
+        # For pluralization keys, also match the parent key:
+        #   t("items.count", count: n) should match items.count.one, items.count.other, etc.
         quoted_name = Regexp.quote(name)
 
-        # Build pattern that matches the key in quotes or as a symbol
-        /(?:I18n\.)?t\s*\(\s*["':]+#{quoted_name}["']?\s*[,)]/
+        # Check if this is a pluralization key and build alternate pattern
+        parent_key = parent_key_for_pluralization(name)
+        if parent_key
+          quoted_parent = Regexp.quote(parent_key)
+          # Match either the exact key OR the parent key
+          /(?:I18n\.)?t\s*\(\s*["':]+(?:#{quoted_name}|#{quoted_parent})["']?\s*[,)]/
+        else
+          # Build pattern that matches the key in quotes or as a symbol
+          /(?:I18n\.)?t\s*\(\s*["':]+#{quoted_name}["']?\s*[,)]/
+        end
       end
 
       def skip_comments?
@@ -68,6 +89,18 @@ module Keela
       end
 
       private
+
+      # Returns the parent key if this is a pluralization key, nil otherwise
+      # "items.count.one" -> "items.count"
+      # "users.show.title" -> nil
+      def parent_key_for_pluralization(key)
+        PLURAL_SUFFIXES.each do |suffix|
+          if key.end_with?(".#{suffix}")
+            return key.sub(/\.#{suffix}$/, "")
+          end
+        end
+        nil
+      end
 
       # Flatten nested hash to dot-notation keys
       # { "en" => { "users" => { "title" => "..." } } }
