@@ -41,8 +41,12 @@ module Keela
         # uppercase letters/digits/underscores (partial match)
         # Uses negative lookahead to avoid:
         #   - partial matches (followed by uppercase letters/digits/underscores)
-        #   - definitions (followed by optional whitespace then =, but not ==)
-        /(?<![A-Z0-9_])#{Regexp.quote(name)}(?![A-Z0-9_])(?!\s*=(?!=))/
+        #   - definitions (followed by optional whitespace then =, but not == or =>)
+        #
+        # The pattern (?!\s*=(?![=>])) means:
+        #   - Don't match if followed by optional whitespace, then =
+        #   - UNLESS that = is followed by = (comparison) or > (hash rocket)
+        /(?<![A-Z0-9_])#{Regexp.quote(name)}(?![A-Z0-9_])(?!\s*=(?![=>]))/
       end
 
       def skip_comments?

@@ -164,4 +164,26 @@ class ConstantsStrategyTest < Minitest::Test
     regex = @strategy.usage_regex("FOO")
     refute_match regex, "FOO = 'bar'"
   end
+
+  # Issue #61: Rescue splat usage
+  def test_usage_regex_matches_rescue_splat
+    regex = @strategy.usage_regex("TRANSIENT_ERRORS")
+    assert_match regex, "rescue *TRANSIENT_ERRORS => e"
+  end
+
+  # Issue #62: Hash key usage (hash rocket)
+  def test_usage_regex_matches_hash_key_with_rocket
+    regex = @strategy.usage_regex("ENTERED")
+    assert_match regex, "ENTERED => 'value'"
+  end
+
+  def test_usage_regex_matches_hash_key_in_hash_literal
+    regex = @strategy.usage_regex("STATUS")
+    assert_match regex, "{ STATUS => 'active' }"
+  end
+
+  def test_usage_regex_matches_namespaced_constant_as_hash_key
+    regex = @strategy.usage_regex("D")
+    assert_match regex, "B::C::D => 42"
+  end
 end
