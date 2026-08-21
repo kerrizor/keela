@@ -206,6 +206,58 @@ The `i18n_keys` strategy is **beta** and may produce false positives. It cannot 
 
 Review results carefully and use the exclusion file for known false positives.
 
+## Limitations
+
+Keela uses static analysis — it reads your code without executing it. This means some patterns are **fundamentally undetectable**.
+
+### What Keela CAN Detect
+
+Keela detects **literal references** to methods, constants, etc.:
+
+```ruby
+# ✅ Direct calls
+user.save
+User.find(1)
+
+# ✅ Literal symbol references
+before_save :ensure_token
+validate :check_valid
+send(:process_data)
+respond_to?(:optional_method)
+```
+
+### What Keela CANNOT Detect
+
+**Dynamic dispatch** with interpolation or variables cannot be analyzed statically:
+
+```ruby
+# ❌ Interpolated symbols — what method does this call?
+public_send(:"add_#{role}", user)
+
+# ❌ Variable method names — could be anything
+send(method_name)
+
+# ❌ Computed method names
+define_method(compute_name) { }
+```
+
+To detect these, Keela would need to trace all possible runtime values — essentially becoming a Ruby interpreter. This is not a bug; it's a fundamental limitation of static analysis.
+
+### Handling False Positives
+
+When Keela reports a method as unused but it's actually called dynamically, add it to your exclusion file:
+
+```yaml
+# .keela/excluded.yml
+methods:
+  app/models/project_team.rb:
+    - add_owner: "Called via public_send(:\"add_\#{role}\")"
+    - add_maintainer: "Called via public_send(:\"add_\#{role}\")"
+    - add_developer: "Called via public_send(:\"add_\#{role}\")"
+```
+
+**Tip:** If you see `send`, `public_send`, or `define_method` with interpolation in a file, expect some false positives for methods in that file.
+
 ## Configuration File
 
 Create a `keela.yml` or `.keela.yml` in your project root:
