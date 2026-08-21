@@ -55,6 +55,14 @@ module Keela
       nil
     end
 
+    # Override this method for strategies that need to detect usage through
+    # patterns that can't be expressed as a simple regex (e.g., I18n lazy lookup).
+    # Returns a Set of definition names that are considered "used".
+    # Called with the source_files hash { filepath => [lines] }.
+    def additional_used_names(_source_files)
+      Set.new
+    end
+
     private
 
     def configured_pattern

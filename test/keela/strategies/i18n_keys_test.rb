@@ -337,3 +337,109 @@ class I18nKeysPluralizationIntegrationTest < Minitest::Test
     assert_includes unused_keys, "unused.count.other"
   end
 end
+
+class I18nKeysLazyLookupTest < Minitest::Test
+  def setup
+    @strategy = Keela::Strategies::I18nKeys.new
+  end
+
+  def test_view_path_to_i18n_prefix
+    assert_equal "users.show", @strategy.view_path_to_prefix("app/views/users/show.html.erb")
+    assert_equal "users.index", @strategy.view_path_to_prefix("app/views/users/index.html.haml")
+    assert_equal "admin.users.show", @strategy.view_path_to_prefix("app/views/admin/users/show.html.erb")
+  end
+
+  def test_view_path_to_i18n_prefix_for_partials
+    # Partials strip the leading underscore
+    assert_equal "users.form", @strategy.view_path_to_prefix("app/views/users/_form.html.erb")
+    assert_equal "shared.header", @strategy.view_path_to_prefix("app/views/shared/_header.html.erb")
+  end
+
+  def test_view_path_to_i18n_prefix_strips_ee
+    assert_equal "users.show", @strategy.view_path_to_prefix("ee/app/views/users/show.html.erb")
+  end
+
+  def test_view_path_to_i18n_prefix_for_layouts
+    assert_equal "layouts.application", @strategy.view_path_to_prefix("app/views/layouts/application.html.erb")
+  end
+
+  def test_extract_lazy_keys_from_content
+    content = <<~ERB
+      <h1><%= t('.title') %></h1>
+      <p><%= t('.description') %></p>
+      <p><%= t("full.key") %></p>
+    ERB
+
+    lazy_keys = @strategy.extract_lazy_keys(content)
+    assert_includes lazy_keys, ".title"
+    assert_includes lazy_keys, ".description"
+    refute_includes lazy_keys, "full.key"
+  end
+
+  def test_extract_lazy_keys_handles_single_quotes
+    content = "<%= t('.title') %>"
+    lazy_keys = @strategy.extract_lazy_keys(content)
+    assert_includes lazy_keys, ".title"
+  end
+end
+
+class I18nKeysLazyLookupIntegrationTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    # Create locale file
+    FileUtils.mkdir_p("config/locales")
+    File.write("config/locales/en.yml", <<~YAML)
+      en:
+        users:
+          show:
+            title: "User Profile"
+            description: "View user details"
+            unused_key: "Never used"
+        admin:
+          users:
+            index:
+              heading: "All Users"
+    YAML
+
+    # Create view files with lazy lookup
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/show.html.erb", <<~ERB)
+      <h1><%= t('.title') %></h1>
+      <p><%= t('.description') %></p>
+    ERB
+
+    FileUtils.mkdir_p("app/views/admin/users")
+    File.write("app/views/admin/users/index.html.erb", <<~ERB)
+      <h1><%= t('.heading') %></h1>
+    ERB
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_lazy_lookup_detected_as_used
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[config/locales/**/*.yml app/views/**/*.erb]
+    config.extensions = %w[yml erb]
+
+    strategy = Keela::Strategies::I18nKeys.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true)
+
+    unused_keys = scanner.unused_collection.values.flatten
+
+    # These should be detected as used via lazy lookup
+    refute_includes unused_keys, "users.show.title"
+    refute_includes unused_keys, "users.show.description"
+    refute_includes unused_keys, "admin.users.index.heading"
+
+    # This should still be unused
+    assert_includes unused_keys, "users.show.unused_key"
+  end
+end

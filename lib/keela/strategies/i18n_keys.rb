@@ -18,10 +18,13 @@ module Keela
     # Pluralization keys (zero, one, two, few, many, other) are grouped:
     # if t("items.count", count: n) is called, all siblings are considered used.
     #
-    # Note: Lazy lookup (t('.title') in views) is not yet supported.
+    # Lazy lookup is supported: t('.title') in app/views/users/show.html.erb
+    # resolves to 'users.show.title'.
     #
     class I18nKeys < Strategy
       PLURAL_SUFFIXES = %w[zero one two few many other].freeze
+      VIEW_PATH_REGEX = %r{(?:ee/)?app/views/(.+)\.html\.(?:erb|haml|slim)$}.freeze
+      LAZY_LOOKUP_REGEX = /(?:I18n\.)?t\s*\(\s*['"](\.[^'"]+)['"]/
       def name
         "i18n_keys"
       end
@@ -86,6 +89,52 @@ module Keela
 
       def skip_comments?
         true
+      end
+
+      # Convert a view file path to its I18n prefix
+      # "app/views/users/show.html.erb" -> "users.show"
+      # "app/views/users/_form.html.erb" -> "users.form"
+      # "ee/app/views/users/show.html.erb" -> "users.show"
+      def view_path_to_prefix(path)
+        return nil unless path =~ VIEW_PATH_REGEX
+
+        view_path = Regexp.last_match(1)
+
+        # Split into parts and process
+        parts = view_path.split("/")
+
+        # Handle partials: _form -> form
+        parts[-1] = parts[-1].sub(/^_/, "")
+
+        parts.join(".")
+      end
+
+      # Extract lazy lookup keys from view content
+      # Returns array of keys like [".title", ".description"]
+      def extract_lazy_keys(content)
+        content.scan(LAZY_LOOKUP_REGEX).flatten
+      end
+
+      # Build a set of expanded lazy lookup keys from view files
+      # Called by the scanner to detect usage via lazy lookup
+      def additional_used_names(source_files)
+        expanded = Set.new
+
+        source_files.each do |filepath, lines|
+          prefix = view_path_to_prefix(filepath)
+          next unless prefix
+
+          content = lines.join("\n")
+          lazy_keys = extract_lazy_keys(content)
+
+          lazy_keys.each do |lazy_key|
+            # .title -> users.show.title
+            full_key = "#{prefix}#{lazy_key}"
+            expanded << full_key
+          end
+        end
+
+        expanded
       end
 
       private
