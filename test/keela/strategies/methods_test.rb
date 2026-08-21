@@ -135,3 +135,96 @@ class MethodsSelfMethodTest < Minitest::Test
     assert regex.match?("instance_method()")
   end
 end
+
+class MethodsSymbolUsageTest < Minitest::Test
+  def setup
+    @strategy = Keela::Strategies::Methods.new
+  end
+
+  # Rails model callbacks
+  def test_usage_regex_matches_before_save_callback
+    regex = @strategy.usage_regex("ensure_token")
+    assert_match regex, "before_save :ensure_token"
+  end
+
+  def test_usage_regex_matches_after_create_callback
+    regex = @strategy.usage_regex("send_welcome_email")
+    assert_match regex, "after_create :send_welcome_email"
+  end
+
+  def test_usage_regex_matches_before_validation_callback
+    regex = @strategy.usage_regex("normalize_email")
+    assert_match regex, "before_validation :normalize_email, if: :email_changed?"
+  end
+
+  # Rails controller callbacks
+  def test_usage_regex_matches_before_action_callback
+    regex = @strategy.usage_regex("authenticate_user!")
+    assert_match regex, "before_action :authenticate_user!"
+  end
+
+  def test_usage_regex_matches_after_action_callback
+    regex = @strategy.usage_regex("log_request")
+    assert_match regex, "after_action :log_request, only: [:create, :update]"
+  end
+
+  # Validation callbacks
+  def test_usage_regex_matches_validate_callback
+    regex = @strategy.usage_regex("check_valid_state")
+    assert_match regex, "validate :check_valid_state"
+  end
+
+  # Dynamic invocation with literal symbols
+  def test_usage_regex_matches_send_with_literal_symbol
+    regex = @strategy.usage_regex("process_data")
+    assert_match regex, "send(:process_data)"
+  end
+
+  def test_usage_regex_matches_public_send_with_literal_symbol
+    regex = @strategy.usage_regex("handle_event")
+    assert_match regex, "public_send(:handle_event, args)"
+  end
+
+  def test_usage_regex_matches___send___with_literal_symbol
+    regex = @strategy.usage_regex("internal_method")
+    assert_match regex, "__send__(:internal_method)"
+  end
+
+  # Other metaprogramming patterns
+  def test_usage_regex_matches_respond_to_check
+    regex = @strategy.usage_regex("optional_method")
+    assert_match regex, "respond_to?(:optional_method)"
+  end
+
+  def test_usage_regex_matches_try_call
+    regex = @strategy.usage_regex("maybe_nil")
+    assert_match regex, "obj.try(:maybe_nil)"
+  end
+
+  def test_usage_regex_matches_method_reference
+    regex = @strategy.usage_regex("to_be_called")
+    assert_match regex, "method(:to_be_called).call"
+  end
+
+  # Symbol in arrays/hashes (common in Rails)
+  def test_usage_regex_matches_symbol_in_array
+    regex = @strategy.usage_regex("allowed_action")
+    assert_match regex, "only: [:allowed_action, :other]"
+  end
+
+  def test_usage_regex_matches_symbol_as_hash_value
+    regex = @strategy.usage_regex("handler_method")
+    assert_match regex, "{ on_success: :handler_method }"
+  end
+
+  # Edge cases - should NOT match
+  def test_usage_regex_does_not_match_partial_symbol
+    regex = @strategy.usage_regex("foo")
+    refute_match regex, ":foobar"
+  end
+
+  def test_usage_regex_does_not_match_symbol_within_larger_symbol
+    regex = @strategy.usage_regex("save")
+    refute_match regex, ":before_save"
+  end
+end

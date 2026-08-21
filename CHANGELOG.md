@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Constants used as hash keys (`CONST => value`) or in rescue splats (`rescue *ERRORS => e`) are now correctly detected as used ([#63](https://github.com/kerrizor/keela/pull/63))
+- Methods referenced as literal symbols (`:method_name`) are now detected as used, including Rails callbacks, `send(:method)`, `validate :method`, etc. ([#64](https://github.com/kerrizor/keela/issues/64))
 
 ## [0.4.0] - 2026-08-14
 
