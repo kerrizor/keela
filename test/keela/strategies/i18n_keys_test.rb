@@ -173,6 +173,62 @@ class I18nKeysUsageRegexTest < Minitest::Test
   end
 end
 
+class I18nKeysPluralizationTest < Minitest::Test
+  def setup
+    @strategy = Keela::Strategies::I18nKeys.new
+    @tmpdir = Dir.mktmpdir
+  end
+
+  def teardown
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_pluralization_keys_include_parent_key
+    locale_file = File.join(@tmpdir, "en.yml")
+    File.write(locale_file, <<~YAML)
+      en:
+        items:
+          count:
+            zero: "No items"
+            one: "1 item"
+            other: "%{count} items"
+    YAML
+
+    definitions = @strategy.extract_definitions_from_file(locale_file, [])
+    names = definitions.map { |d| d[:name] }
+
+    # Should include both the full keys AND the parent key
+    assert_includes names, "items.count.zero"
+    assert_includes names, "items.count.one"
+    assert_includes names, "items.count.other"
+    assert_includes names, "items.count"
+  end
+
+  def test_usage_regex_matches_parent_key_for_pluralization
+    # When looking for "items.count.one", should also match t("items.count")
+    regex = @strategy.usage_regex("items.count.one")
+    assert_match regex, 't("items.count", count: 5)'
+  end
+
+  def test_non_pluralization_keys_do_not_get_parent
+    locale_file = File.join(@tmpdir, "en.yml")
+    File.write(locale_file, <<~YAML)
+      en:
+        users:
+          show:
+            title: "User Profile"
+    YAML
+
+    definitions = @strategy.extract_definitions_from_file(locale_file, [])
+    names = definitions.map { |d| d[:name] }
+
+    # Should NOT include parent keys for non-pluralization
+    assert_includes names, "users.show.title"
+    refute_includes names, "users.show"
+    refute_includes names, "users"
+  end
+end
+
 class I18nKeysIntegrationTest < Minitest::Test
   def setup
     @tmpdir = Dir.mktmpdir
@@ -222,5 +278,62 @@ class I18nKeysIntegrationTest < Minitest::Test
     assert_includes unused_keys, "users.show.unused_key"
     refute_includes unused_keys, "users.show.title"
     refute_includes unused_keys, "common.save"
+  end
+end
+
+class I18nKeysPluralizationIntegrationTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    # Create locale file with pluralization
+    FileUtils.mkdir_p("config/locales")
+    File.write("config/locales/en.yml", <<~YAML)
+      en:
+        items:
+          count:
+            zero: "No items"
+            one: "1 item"
+            other: "%{count} items"
+        unused:
+          count:
+            one: "1 thing"
+            other: "%{count} things"
+    YAML
+
+    # Create Ruby file that uses the parent key
+    FileUtils.mkdir_p("app/views/items")
+    File.write("app/views/items/index.html.erb", <<~ERB)
+      <p><%= t('items.count', count: @items.size) %></p>
+    ERB
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_pluralization_siblings_detected_as_used
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[config/locales/**/*.yml app/**/*.erb]
+    config.extensions = %w[yml erb]
+
+    strategy = Keela::Strategies::I18nKeys.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true)
+
+    unused_keys = scanner.unused_collection.values.flatten
+
+    # items.count.* should all be detected as used (via parent key)
+    refute_includes unused_keys, "items.count.zero"
+    refute_includes unused_keys, "items.count.one"
+    refute_includes unused_keys, "items.count.other"
+    refute_includes unused_keys, "items.count"
+
+    # unused.count.* should still be reported as unused
+    assert_includes unused_keys, "unused.count.one"
+    assert_includes unused_keys, "unused.count.other"
   end
 end
