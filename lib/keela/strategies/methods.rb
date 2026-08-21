@@ -24,9 +24,14 @@ module Keela
           # Setter method: match assignment usage
           /(?<!def |def self\.)#{method_name.chomp("=")}\W=*/
         else
-          # Regular method: match calls
-          # Exclude both "def foo" and "def self.foo" definitions
-          /(?<!def |def self\.)#{method_name}\W/
+          # Regular method: match calls and symbol references
+          # Matches:
+          #   - Direct calls: foo(arg), obj.foo
+          #   - Symbol references: :foo, :foo! (callbacks, send, etc.)
+          # Excludes:
+          #   - Definitions: def foo, def self.foo
+          #   - Partial matches: :foobar, before_foo (via word boundary lookbehind)
+          /(?<!def |def self\.)(?<![A-Za-z0-9_]):?#{method_name}(?:\W|$)/
         end
       end
 
