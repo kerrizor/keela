@@ -814,6 +814,66 @@ class ScannerConfigurationValidationTest < Minitest::Test
   end
 end
 
+class ScannerDeduplicationTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.remove_entry(@tmpdir)
+  end
+
+  def test_does_not_list_the_same_unused_name_twice_per_file
+    # The same method is delegated in two separate statements, producing two
+    # definitions that both resolve to the same unused name. The collection
+    # must list it only once.
+    File.write("app/models/order.rb", <<~RUBY)
+      class Order
+        delegate :duplicated, to: :user
+        delegate :duplicated, to: :account
+      end
+    RUBY
+
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Delegations.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true, silent: true)
+
+    unused = scanner.unused_collection["app/models/order.rb"]
+    assert_equal 1, unused.count("duplicated"),
+      "Expected 'duplicated' to appear exactly once, got: #{unused.inspect}"
+  end
+
+  def test_deduplicates_across_multiple_files_independently
+    File.write("app/models/a.rb", <<~RUBY)
+      class A
+        delegate :shared, to: :user
+        delegate :shared, to: :account
+      end
+    RUBY
+    File.write("app/models/b.rb", <<~RUBY)
+      class B
+        delegate :shared, to: :user
+      end
+    RUBY
+
+    config = Keela::Configuration.new
+    strategy = Keela::Strategies::Delegations.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true, silent: true)
+
+    assert_equal ["shared"], scanner.unused_collection["app/models/a.rb"]
+    assert_equal ["shared"], scanner.unused_collection["app/models/b.rb"]
+  end
+end
+
 class ScannerMultiMethodDelegateTest < Minitest::Test
   def setup
     @tmpdir = Dir.mktmpdir

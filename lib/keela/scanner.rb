@@ -224,8 +224,15 @@ module Keela
         regex.match?(source_code) ? [] : definition
       end
 
+      # A single logical definition can be extracted from multiple lines
+      # (e.g. the same method delegated twice, or a constant declared and
+      # referenced), so guard against listing the same name twice per file.
+      #
       unused.each do |unused_def|
-        @unused_collection[unused_def[:file]] << unused_def[:name]
+        names = @unused_collection[unused_def[:file]]
+        next if names.include?(unused_def[:name])
+
+        names << unused_def[:name]
         if unused_def[:line]
           @source_locations["#{unused_def[:file]}:#{unused_def[:name]}"] = unused_def[:line]
         end
