@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Unused entries are no longer listed more than once per file in reports and baselines when a single definition is extracted from multiple lines (e.g. the same method delegated twice, or a constant declared and referenced)
+- Unused entries are no longer listed more than once per file in reports and baselines when a single definition is extracted from multiple lines (e.g. the same method delegated twice, or a constant declared and referenced) ([#72](https://github.com/kerrizor/keela/pull/72))
 
 ## [0.4.1] - 2026-08-21
 
