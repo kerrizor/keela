@@ -6,7 +6,7 @@ Like her namesake — the famous springer spaniel who helped solve cases by find
 
 ```
 🔍 6 strategies: methods, scopes, constants, delegates, attrs, i18n
-🎯 Baseline mode — only bark at NEW dead code  
+🎯 Baseline mode — only bark at NEW dead code
 📊 JSON output for CI pipelines
 ```
 
