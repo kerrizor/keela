@@ -2,17 +2,17 @@
 
 **Your Ruby codebase's forensic investigator.**
 
-Like her namesake — the famous springer spaniel who helped solve cases by finding microscopic traces that eluded forensic teams — Keela sniffs out the dead code that `grep` missed.
+Like her namesake (the famous springer spaniel who helped solve cases by finding microscopic traces that eluded forensic teams), Keela sniffs out the dead code that `grep` missed.
 
 ```
 🔍 6 strategies: methods, scopes, constants, delegates, attrs, i18n
-🎯 Baseline mode — only bark at NEW dead code
+🎯 Baseline mode: only bark at NEW dead code
 📊 JSON output for CI pipelines
 ```
 
 ## Why Remove Unused Code?
 
-Dead code isn't harmless — it's actively costly:
+Dead code isn't harmless. It's actively costly:
 
 - **Cognitive overhead**: Developers read and try to understand code that doesn't matter, slowing down onboarding and feature work
 - **CI minutes**: Tests for unused methods still run, burning compute time on every pipeline
@@ -20,7 +20,7 @@ Dead code isn't harmless — it's actively costly:
 - **Refactoring friction**: Unused code creates dependencies that make refactoring harder ("wait, is this called somewhere?")
 - **Security surface**: More code means more potential vulnerabilities, even in paths users never hit
 
-Most codebases accumulate dead code gradually — a feature flag that's always on, a method replaced but never deleted, a scope that lost its last caller. Keela helps you find it and clean it up.
+Most codebases accumulate dead code gradually: a feature flag that's always on, a method replaced but never deleted, a scope that lost its last caller. Keela helps you find it and clean it up.
 
 ## Installation
 
@@ -97,18 +97,18 @@ keela --report
 
 ## What "Unused" Means
 
-Keela defines "unused" as **unused in production code** — not just unused anywhere.
+Keela defines "unused" as **unused in production code**, not just unused anywhere.
 
 By default, Keela scans `app/`, `lib/`, and `config/` directories. It intentionally
 excludes `spec/` and `test/` directories because:
 
-1. **Tests aren't usage** — Code that only exists to be tested isn't providing
+1. **Tests aren't usage.** Code that only exists to be tested isn't providing
    application value. If you delete the unused code, you delete its tests too.
 
-2. **Tests can cover dead code** — A method with 100% test coverage can still be
+2. **Tests can cover dead code.** A method with 100% test coverage can still be
    dead if nothing in the application calls it.
 
-3. **Cleaner signal** — Including test files would hide genuinely unused code
+3. **Cleaner signal.** Including test files would hide genuinely unused code
    behind "but it has tests!" false negatives.
 
 If Keela flags something that's only used in tests, consider whether the code
@@ -210,7 +210,7 @@ Review results carefully and use the exclusion file for known false positives.
 
 ## Limitations
 
-Keela uses static analysis — it reads your code without executing it. This means some patterns are **fundamentally undetectable**.
+Keela uses static analysis: it reads your code without executing it. This means some patterns are **fundamentally undetectable**.
 
 ### What Keela CAN Detect
 
@@ -233,17 +233,17 @@ respond_to?(:optional_method)
 **Dynamic dispatch** with interpolation or variables cannot be analyzed statically:
 
 ```ruby
-# ❌ Interpolated symbols — what method does this call?
+# ❌ Interpolated symbols: what method does this call?
 public_send(:"add_#{role}", user)
 
-# ❌ Variable method names — could be anything
+# ❌ Variable method names: could be anything
 send(method_name)
 
 # ❌ Computed method names
 define_method(compute_name) { }
 ```
 
-To detect these, Keela would need to trace all possible runtime values — essentially becoming a Ruby interpreter. This is not a bug; it's a fundamental limitation of static analysis.
+To detect these, Keela would need to trace all possible runtime values, essentially becoming a Ruby interpreter. This is not a bug; it's a fundamental limitation of static analysis.
 
 ### Handling False Positives
 
