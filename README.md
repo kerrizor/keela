@@ -542,6 +542,10 @@ Like her namesake, this gem finds the dead code that `grep` and your IDE missed.
 
 *Good girl, Keela.* 🦴
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of notable changes to each release.
+
 ## License
 
 MIT License. See [LICENSE.txt](LICENSE.txt).
