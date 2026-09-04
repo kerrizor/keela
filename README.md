@@ -6,7 +6,7 @@ Like her namesake — the famous springer spaniel who helped solve cases by find
 
 ```
 🔍 6 strategies: methods, scopes, constants, delegates, attrs, i18n
-🎯 Baseline mode — only bark at NEW dead code  
+🎯 Baseline mode — only bark at NEW dead code
 📊 JSON output for CI pipelines
 ```
 
@@ -541,6 +541,10 @@ Keela was a famous English Springer Spaniel known as the "CSI dog." She could de
 Like her namesake, this gem finds the dead code that `grep` and your IDE missed.
 
 *Good girl, Keela.* 🦴
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of notable changes to each release.
 
 ## License
 
