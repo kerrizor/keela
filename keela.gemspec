@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.homepage    = "https://github.com/kerrizor/keela"
   s.license     = "MIT"
 
-  s.required_ruby_version = ">= 3.1.0"
+  s.required_ruby_version = ">= 3.3.0"
 
   s.files = Dir.glob(%w[
     lib/**/*.rb
