@@ -150,6 +150,47 @@ class PartialsUsageRegexTest < Minitest::Test
     regex = @strategy.usage_regex("users/form")
     assert_match regex, "render layout: 'users/form'"
   end
+
+  # render_to_string / render_to_body render partials too, in both the
+  # no-parens same-line form and the contiguous parens form.
+  #
+  def test_matches_render_to_string_no_parens
+    regex = @strategy.usage_regex("users/form")
+    assert_match regex, 'render_to_string partial: "users/form"'
+  end
+
+  def test_matches_render_to_string_parens_contiguous
+    regex = @strategy.usage_regex("users/form")
+    assert_match regex, 'render_to_string(partial: "users/form")'
+  end
+
+  def test_matches_render_to_body_no_parens
+    regex = @strategy.usage_regex("users/form")
+    assert_match regex, 'render_to_body partial: "users/form"'
+  end
+
+  def test_matches_render_to_body_parens_contiguous
+    regex = @strategy.usage_regex("users/form")
+    assert_match regex, 'render_to_body(partial: "users/form")'
+  end
+
+  def test_matches_render_to_string_plain_string
+    regex = @strategy.usage_regex("users/form")
+    assert_match regex, 'render_to_string "users/form"'
+  end
+
+  # The left word-boundary must still reject method tokens that merely end in
+  # render_to_string / render_to_body.
+  #
+  def test_does_not_match_suffixed_render_to_string
+    regex = @strategy.usage_regex("users/form")
+    refute_match regex, 'foo_render_to_string partial: "users/form"'
+  end
+
+  def test_does_not_match_prerender_still
+    regex = @strategy.usage_regex("users/form")
+    refute_match regex, 'prerender "users/form"'
+  end
 end
 
 class PartialsIntegrationTest < Minitest::Test
@@ -423,5 +464,133 @@ class PartialsIntegrationTest < Minitest::Test
     File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
 
     refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # render_to_string with an explicit partial: path marks the partial used,
+  # matching the GitLab false positive render_to_string(partial: '...').
+  #
+  def test_detects_render_to_string_explicit_path
+    FileUtils.mkdir_p("app/views/users")
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/controllers/users_controller.rb", <<~RUBY)
+      class UsersController < ApplicationController
+        def show
+          render_to_string(partial: "users/form")
+        end
+      end
+    RUBY
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # render_to_body is also a render method.
+  #
+  def test_detects_render_to_body_explicit_path
+    FileUtils.mkdir_p("app/views/users")
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/controllers/users_controller.rb", <<~RUBY)
+      class UsersController < ApplicationController
+        def show
+          render_to_body partial: "users/form"
+        end
+      end
+    RUBY
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # A bareword render_to_string resolves against the caller dir just like
+  # render, matching render_to_string partial: 'groups_notification'.
+  #
+  def test_detects_render_to_string_bareword_from_controller
+    FileUtils.mkdir_p("app/views/users")
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/controllers/users_controller.rb", <<~RUBY)
+      class UsersController < ApplicationController
+        def show
+          render_to_string partial: "form"
+        end
+      end
+    RUBY
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # foo_render_to_string is not a render method; the left word-boundary keeps it
+  # from marking the partial used.
+  #
+  def test_suffixed_render_to_string_does_not_mark_used
+    FileUtils.mkdir_p("app/views/users")
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/controllers/users_controller.rb", <<~RUBY)
+      class UsersController < ApplicationController
+        def show
+          foo_render_to_string partial: "users/form"
+        end
+      end
+    RUBY
+
+    assert_includes unused_names(scanner_for), "users/form"
+  end
+
+  # A positional string whose basename starts with _ names the partial file
+  # directly. render_to_string("shared/notes/_note") uses shared/notes/note.
+  #
+  def test_detects_positional_underscore_path_render_to_string
+    FileUtils.mkdir_p("app/views/shared/notes")
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/views/shared/notes/_note.html.erb", "<div></div>")
+    File.write("app/controllers/notes_controller.rb", <<~RUBY)
+      class NotesController < ApplicationController
+        def show
+          render_to_string("shared/notes/_note", locals: {})
+        end
+      end
+    RUBY
+
+    refute_includes unused_names(scanner_for), "shared/notes/note"
+  end
+
+  # The positional-underscore form also works through plain render.
+  #
+  def test_detects_positional_underscore_path_plain_render
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/_form" %>')
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # A positional string without a leading underscore in the basename still
+  # resolves through the existing explicit-path matcher and must not break.
+  #
+  def test_plain_positional_path_without_underscore_still_used
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # A positional VARIABLE render is dynamic and stays undetected: the partial
+  # is (correctly) reported unused rather than guessed-at.
+  #
+  def test_does_not_resolve_positional_variable_render_to_string
+    FileUtils.mkdir_p("app/views/users")
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/controllers/users_controller.rb", <<~RUBY)
+      class UsersController < ApplicationController
+        def show
+          render_to_string(some_var)
+        end
+      end
+    RUBY
+
+    assert_includes unused_names(scanner_for), "users/form"
   end
 end
