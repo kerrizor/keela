@@ -31,7 +31,12 @@ module Keela
     #     belong in the baseline rather than a hard-coded skip.
     #
     class Partials < Strategy
-      DEFINITION_FILE_REGEX = %r{(?:ee/)?app/views/.*/_[^/]+\.html\.(?:erb|haml|slim)$}.freeze
+      # The intermediate directory is optional so a partial directly under
+      # app/views/ (app/views/_foo.html.erb) matches too; without this the file
+      # filter and #extract_definitions_from_file disagree and root partials are
+      # silently skipped.
+      #
+      DEFINITION_FILE_REGEX = %r{(?:ee/)?app/views/(?:.*/)?_[^/]+\.html\.(?:erb|haml|slim)$}.freeze
 
       # Captures the path under app/views/ so we can derive a partial name:
       # app/views/users/_form.html.erb -> "users/_form"
@@ -55,7 +60,10 @@ module Keela
       # counts as a use just like partial:. Only barewords (no slash) are
       # captured here; paths with a slash are handled by #usage_regex.
       #
-      BAREWORD_RENDER_REGEX = /render\s+(?:(?:partial|layout):\s*)?["']([^"'\/]+)["']/
+      # The leading negative lookbehind anchors render on its left so that
+      # prerender/foo_render do not count as a render.
+      #
+      BAREWORD_RENDER_REGEX = /(?<!\w)render\s+(?:(?:partial|layout):\s*)?["']([^"'\/]+)["']/
 
       def name
         "partials"
@@ -86,7 +94,10 @@ module Keela
         # (single/double quotes, tolerant space). layout: renders the partial as
         # a layout, so it counts as a use.
         #
-        /render\s+(?:(?:partial|layout):\s*)?["']#{Regexp.quote(name)}["']/
+        # The leading negative lookbehind anchors render on its left so that
+        # prerender/foo_render do not count as a render.
+        #
+        /(?<!\w)render\s+(?:(?:partial|layout):\s*)?["']#{Regexp.quote(name)}["']/
       end
 
       def skip_comments?

@@ -129,6 +129,15 @@ class PartialsUsageRegexTest < Minitest::Test
     refute_match regex, 'render "users/sidebar"'
   end
 
+  # A left word-boundary keeps prerender/foo_render from counting as a render of
+  # this partial (e.g. prerender "users/form" is not a render of users/form).
+  #
+  def test_does_not_match_prefixed_render_word
+    regex = @strategy.usage_regex("users/form")
+    refute_match regex, 'prerender "users/form"'
+    refute_match regex, 'foo_render "users/form"'
+  end
+
   # render layout: "x/y" renders the partial x/y as a layout, so it counts as
   # using that partial (single + double quotes, tolerant space).
   #
@@ -356,5 +365,63 @@ class PartialsIntegrationTest < Minitest::Test
 
     refute_includes unused_names(scanner_for), "users/form"
     refute_includes unused_names(scanner_for), "users/sidebar"
+  end
+
+  # FIX 1: a partial directly under app/views/ (no intermediate dir) must be
+  # picked up by the file-pattern filter during a full scan, not just by a direct
+  # call to #extract_definitions_from_file. A genuinely-dead root partial IS
+  # reported unused.
+  #
+  def test_detects_unused_root_level_partial
+    FileUtils.mkdir_p("app/views")
+    File.write("app/views/_foo.html.erb", "<div>never rendered</div>")
+
+    assert_includes unused_names(scanner_for), "foo"
+  end
+
+  # FIX 1: a root-level partial that IS rendered by an explicit path from a
+  # root-level view is not flagged. render "foo" in app/views/index.html.erb
+  # resolves to the root-level "foo" via bareword resolution (caller dir "").
+  #
+  def test_does_not_flag_used_root_level_partial
+    FileUtils.mkdir_p("app/views")
+    File.write("app/views/_foo.html.erb", "<div>rendered</div>")
+    File.write("app/views/index.html.erb", '<%= render "foo" %>')
+
+    refute_includes unused_names(scanner_for), "foo"
+  end
+
+  # FIX 2: a left word-boundary on the render pattern prevents prerender from
+  # marking a partial used via explicit path. prerender "users/form" is NOT a
+  # render of users/form, so the partial stays unused.
+  #
+  def test_prerender_does_not_mark_explicit_path_used
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= prerender "users/form" %>')
+
+    assert_includes unused_names(scanner_for), "users/form"
+  end
+
+  # FIX 2: the same left-boundary applies to bareword resolution. foo_render
+  # "form" in a sibling view is NOT a render of users/form.
+  #
+  def test_suffixed_render_does_not_mark_bareword_used
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/show.html.erb", '<%= foo_render "form" %>')
+
+    assert_includes unused_names(scanner_for), "users/form"
+  end
+
+  # FIX 2 positive control: a plain render "users/form" still marks the partial
+  # used after the left-boundary is added.
+  #
+  def test_plain_render_still_marks_used
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
+
+    refute_includes unused_names(scanner_for), "users/form"
   end
 end
