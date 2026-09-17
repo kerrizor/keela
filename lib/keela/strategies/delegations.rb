@@ -58,8 +58,35 @@ module Keela
         /(?<!:)(?<!delegate\s)(?<![a-z_])#{Regexp.quote(name)}(?!\w)/i
       end
 
+      def prepare(source)
+        source.fold_preserves_matching?
+      end
+
+      # Equivalent to matching #usage_regex, with the case folding moved from
+      # the pattern onto the source so that the pattern can drop //i. See
+      # Source#folded for why //i is the expensive part.
+      #
+      # The two decide alike because every guard in the pattern is
+      # case-symmetric: (?<!:) and (?!\w) do not involve case, and under //i
+      # both (?<![a-z_]) and (?<!delegate\s) already match their uppercase
+      # forms, which a folded source no longer contains. That argument needs an
+      # ASCII literal and a source whose folding preserves positions, so fall
+      # back to the //i pattern when either does not hold.
+      #
+      def used?(name, source)
+        return usage_regex(name).match?(source.text) unless name.ascii_only? && source.fold_preserves_matching?
+
+        folded_usage_regex(name).match?(source.folded)
+      end
+
       def skip_comments?
         true
+      end
+
+      private
+
+      def folded_usage_regex(name)
+        /(?<!:)(?<!delegate\s)(?<![a-z_])#{Regexp.quote(name.downcase(:fold))}(?!\w)/
       end
     end
   end

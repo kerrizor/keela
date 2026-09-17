@@ -3,6 +3,12 @@
 require "test_helper"
 
 class DelegationsStrategyTest < Minitest::Test
+  include UsageEquivalence
+
+  ESZETT = "\u00DF"           # folds to "ss", so folding shifts positions
+  KELVIN_SIGN = "\u212A"      # folds to ASCII "k"
+  E_ACUTE_CAPITAL = "\u00C9"  # folds to a non-ASCII character
+
   def setup
     @strategy = Keela::Strategies::Delegations.new
   end
@@ -145,5 +151,180 @@ class DelegationsStrategyTest < Minitest::Test
   def test_usage_regex_matches_prefixed_delegation_usage
     regex = @strategy.usage_regex("user_name")
     assert_match regex, "object.user_name"
+  end
+
+  # prepare tests
+
+  def test_prepare_warms_the_fold_before_workers_fork
+    source = Keela::Source.new("user.name")
+
+    refute source.instance_variable_defined?(:@folded)
+    @strategy.prepare(source)
+
+    assert source.instance_variable_defined?(:@folded)
+    assert source.instance_variable_defined?(:@fold_preserves_matching)
+  end
+
+  # used? tests - the ordinary cases
+
+  def test_used_for_method_call
+    assert_used "name", "puts user.name"
+  end
+
+  def test_used_without_receiver
+    assert_used "name", "puts name"
+  end
+
+  def test_used_for_predicate_method
+    assert_used "valid?", "return unless record.valid?\n"
+  end
+
+  def test_used_for_bang_method
+    assert_used "save!", "record.save!\n"
+  end
+
+  def test_used_for_prefixed_name
+    assert_used "user_name", "puts record.user_name\n"
+  end
+
+  def test_used_at_the_very_start_of_the_source
+    assert_used "name", "name"
+  end
+
+  # used? tests - what must not count as usage
+
+  def test_not_used_for_the_delegate_declaration_alone
+    refute_used "name", "delegate :name, to: :user\n"
+  end
+
+  def test_not_used_for_symbol_reference_alone
+    refute_used "name", "validates :name\n"
+  end
+
+  def test_not_used_for_partial_word
+    refute_used "name", "username\n"
+  end
+
+  def test_not_used_when_preceded_by_an_underscore
+    refute_used "name", "full_name\n"
+  end
+
+  def test_not_used_when_followed_by_a_word_character
+    refute_used "name", "names\n"
+  end
+
+  def test_not_used_when_absent
+    refute_used "name", "class User\nend\n"
+  end
+
+  def test_not_used_for_empty_source
+    refute_used "name", ""
+  end
+
+  # used? tests - case insensitivity, which is why this strategy folds
+
+  def test_used_for_capitalised_occurrence
+    assert_used "name", "record.Name\n"
+  end
+
+  def test_used_for_upper_case_occurrence
+    assert_used "name", "record.NAME\n"
+  end
+
+  def test_used_for_mixed_case_occurrence
+    assert_used "user_name", "record.User_Name\n"
+  end
+
+  def test_not_used_for_capitalised_partial_word
+    refute_used "name", "UserName\n"
+  end
+
+  def test_used_when_the_definition_name_itself_has_capitals
+    assert_used "Name", "record.name\n"
+  end
+
+  def test_not_used_for_upper_case_delegate_declaration_alone
+    refute_used "name", "DELEGATE :name, to: :user\n"
+  end
+
+  # used? tests - the fast path and the fallback must agree
+
+  def test_takes_the_fast_path_on_ascii_source
+    source = Keela::Source.new("record.Name\n")
+
+    assert_predicate source, :fold_preserves_matching?
+    assert @strategy.used?("name", source)
+  end
+
+  def test_falls_back_when_folding_shifts_positions
+    # "ss" from the eszett makes the folded view a different length, so #used?
+    # must use the //i pattern instead and still agree with it.
+    source = Keela::Source.new("STRA#{ESZETT}E\nrecord.name\n")
+
+    refute_predicate source, :fold_preserves_matching?
+    assert_used "name", source.text
+  end
+
+  def test_falls_back_when_non_ascii_folds_into_ascii
+    source = Keela::Source.new("#{KELVIN_SIGN}elvin\nrecord.name\n")
+
+    refute_predicate source, :fold_preserves_matching?
+    assert_used "name", source.text
+  end
+
+  def test_fallback_still_reports_unused_correctly
+    refute_used "name", "STRA#{ESZETT}E\nclass User\nend\n"
+  end
+
+  def test_eszett_source_agrees_for_the_name_folding_would_find
+    # /strasse/i matches the eszett spelling, so "strasse" is used. The folded
+    # view spells it "strasse" too, but at shifted positions, which is exactly
+    # the case the guard exists for.
+    assert_used "strasse", "value = STRA#{ESZETT}E\n"
+  end
+
+  def test_non_ascii_source_that_folds_cleanly_keeps_the_fast_path
+    source = Keela::Source.new("# #{E_ACUTE_CAPITAL}quipe\nrecord.name\n")
+
+    assert_predicate source, :fold_preserves_matching?
+    assert_used "name", source.text
+  end
+
+  def test_non_ascii_name_falls_back
+    name = "nom#{E_ACUTE_CAPITAL}"
+
+    refute_predicate name, :ascii_only?
+    assert_equivalent name, "record.nom#{E_ACUTE_CAPITAL}\n"
+  end
+
+  # used? tests - equivalence over a broad table
+
+  def test_used_agrees_with_usage_regex_across_many_shapes
+    names = ["name", "valid?", "save!", "user_name", "id", "a", "Name", "name2"]
+    sources = [
+      "", "name", "Name", "NAME", "user.name", ":name", "delegate :name, to: :user",
+      "delegate name", "DELEGATE name", "username", "UserName", "full_name", "names",
+      "record.valid?", "valid?", ":valid?", "record.save!", "a", "a.b", "id",
+      "name2", "Name2", "# name\n", "\"name\"", "send(:name)", "obj&.name",
+      "name ||= 1", "namespace", "renamed", "STRA#{ESZETT}E", "#{KELVIN_SIGN}elvin",
+      "#{E_ACUTE_CAPITAL}quipe name", "delegate :name, to: :user\nrecord.name\n"
+    ]
+
+    names.each do |name|
+      sources.each { |source| assert_equivalent name, source }
+    end
+  end
+
+  def test_used_agrees_with_usage_regex_on_generated_input
+    random = Random.new(4321)
+    alphabet = ["name", "Name", "NAME", "username", ":name", "delegate :name", "record.",
+      ".", "_", "\n", "foo", ESZETT, KELVIN_SIGN, E_ACUTE_CAPITAL]
+
+    300.times do
+      name = %w[name valid? user_name].sample(random: random)
+      source = Array.new(random.rand(1..12)) { alphabet.sample(random: random) }.join
+
+      assert_equivalent name, source
+    end
   end
 end

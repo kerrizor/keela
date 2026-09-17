@@ -43,6 +43,26 @@ module Keela
       raise NotImplementedError, "#{self.class} must implement #usage_regex"
     end
 
+    # Whether +name+ is used anywhere in +source+ (a Keela::Source).
+    #
+    # Defaults to matching #usage_regex against the raw source. Override when an
+    # equivalent formulation is cheaper to match. An override must decide
+    # exactly what #usage_regex would decide.
+    #
+    def used?(name, source)
+      usage_regex(name).match?(source.text)
+    end
+
+    # Force any derived Keela::Source view this strategy needs in #used?.
+    #
+    # The scanner calls this once before it forks its workers, so the views are
+    # built in the parent and inherited copy-on-write rather than being rebuilt
+    # by every worker.
+    #
+    def prepare(_source)
+      nil
+    end
+
     # Whether to skip lines that start with # (comments)
     def skip_comments?
       false

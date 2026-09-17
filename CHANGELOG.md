@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Keela::Source`, which holds the concatenated source and its case-folded view
+- `Strategy#used?` and `Strategy#prepare`, so a strategy can give a cheaper equivalent of its `usage_regex`. `Strategy#usage_regex` is unchanged, so existing custom strategies keep working
+
 ### Changed
 
 - CI now tests against Ruby 3.3, 3.4, and 4.0; dropped end-of-life Ruby 3.1 and 3.2. Minimum required Ruby is now 3.3.0
+- **Usage detection is faster.** On a 47.5 MB codebase of 24,783 files and 42,053 definitions, a full run went from 41s to 18.5s of wall time, and from 438s to 130s of CPU time. The report is unchanged
+- **The `attributes` strategy checks its two patterns separately.** It matched one pattern built as an alternation of a bare reference and an `@ivar` reference. An alternation has no single mandatory literal, so the regexp engine cannot fast-forward to a candidate position and scans the whole source instead. Each pattern now keeps its literal
+- **The `delegations` strategy folds the source instead of matching case-insensitively.** Only three ASCII fold targets have a non-ASCII source: U+017F folds to `s`, U+212A folds to `k`, and the eszett folds to `ss`. So once the scanned source is not entirely 7-bit ASCII, a `//i` pattern whose literal begins with `s` or `k` can no longer be found with a plain byte search, and takes 100x longer or worse. A single non-ASCII character in any scanned file is enough to put a whole run on that path, and method names beginning with `s` are common, so delegations such as `squash_never?` and `sentry_issue` each cost about a second. The source is now case-folded once per run and matched with a case-sensitive pattern. It falls back to the case-insensitive pattern when folding would not give the same answer, which only happens with non-ASCII source, for example a character that folds to two characters, or a non-ASCII character that folds into ASCII
 
 ### Fixed
 

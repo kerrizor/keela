@@ -24,16 +24,36 @@ module Keela
       end
 
       def usage_regex(name)
-        # Match usage of the attribute:
-        # - Getter: obj.name, name (without receiver)
-        # - Setter: obj.name = value, self.name = value
-        # - Instance variable: @name (direct access)
-        #
-        # Exclude:
-        # - Symbol notation (:name)
-        # - The attr_* definition itself
-        # - Partial word matches (username shouldn't match name)
-        /(?:(?<!:)(?<!attr_accessor\s)(?<!attr_reader\s)(?<!attr_writer\s)(?<![a-z_])#{Regexp.quote(name)}(?!\w)|@#{Regexp.quote(name)}(?!\w))/
+        Regexp.union(*usage_regexes(name))
+      end
+
+      # The two ways an attribute can be used, as separate patterns:
+      # - bare reference: obj.name, name, self.name = value
+      # - instance variable: @name
+      #
+      # Excluded by the lookarounds:
+      # - symbol notation (:name)
+      # - the attr_* declaration itself
+      # - partial word matches (username must not match name)
+      #
+      # These are kept apart rather than combined into one alternation because
+      # an alternation has no single mandatory literal, so the regexp engine
+      # cannot fast-forward to a candidate position and scans the whole source
+      # instead. Checked separately, each pattern keeps its literal.
+      #
+      def usage_regexes(name)
+        quoted = Regexp.quote(name)
+
+        [
+          /(?<!:)(?<!attr_accessor\s)(?<!attr_reader\s)(?<!attr_writer\s)(?<![a-z_])#{quoted}(?!\w)/,
+          /@#{quoted}(?!\w)/
+        ]
+      end
+
+      # Equivalent to matching #usage_regex, because the caller asks only
+      # whether a match exists and not where it is.
+      def used?(name, source)
+        usage_regexes(name).any? { |regex| regex.match?(source.text) }
       end
 
       def skip_comments?

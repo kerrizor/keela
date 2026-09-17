@@ -208,11 +208,16 @@ module Keela
     end
 
     def find_unused(definitions, show_progress: false)
-      source_code = source_files.values.flatten.join
+      source = Source.from_source_files(source_files)
 
       # Get additional used names from strategy-specific detection
       # (e.g., I18n lazy lookup)
       additional_used = strategy.additional_used_names(source_files)
+
+      # Build the source views the strategy needs here, in the parent, so that
+      # the workers Parallel forks below inherit them instead of each building
+      # its own copy of a string the size of the whole codebase.
+      strategy.prepare(source)
 
       progress_label = show_progress ? "Checking #{strategy.name}" : nil
 
@@ -220,8 +225,7 @@ module Keela
         # Check if marked as used by additional detection
         next [] if additional_used.include?(definition[:name])
 
-        regex = strategy.usage_regex(definition[:name])
-        regex.match?(source_code) ? [] : definition
+        strategy.used?(definition[:name], source) ? [] : definition
       end
 
       # A single logical definition can be extracted from multiple lines
