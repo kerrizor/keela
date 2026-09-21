@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Usage matches can no longer span a file boundary. The concatenated source joined files with no separator, so a file whose last line lacked a trailing newline glued onto the next file's first line, letting a match exist across a gap that is in no single file. This silently marked some unused code as used. Each file is now newline-terminated before concatenation, affecting every strategy ([#86](https://github.com/kerrizor/keela/pull/86), closes [#83](https://github.com/kerrizor/keela/issues/83))
 - Unused entries are no longer listed more than once per file in reports and baselines when a single definition is extracted from multiple lines (e.g. the same method delegated twice, or a constant declared and referenced) ([#72](https://github.com/kerrizor/keela/pull/72))
 
 ## [0.4.1] - 2026-08-21
