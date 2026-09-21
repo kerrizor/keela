@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`partials` strategy**, which detects unused Rails view partials (`_*.html.{erb,haml,slim}`) in `app/views` and `ee/app/views`. It resolves explicit renders (`render "users/form"`, `render partial:`/`layout:`), relative bareword renders against the calling view or controller directory, `render_to_string`/`render_to_body`, and positional underscore paths (`render_to_string("shared/notes/_note")`). Opt-in via `--type partials` (not in the default set) while its false-positive rate is validated. Collection renders (`render @users`) and dynamic renders are documented limitations ([#82](https://github.com/kerrizor/keela/pull/82), closes [#70](https://github.com/kerrizor/keela/issues/70))
+- **`partials` strategy**, which detects unused Rails view partials (`_*.html.{erb,haml,slim}`) in `app/views` and `ee/app/views`. It resolves explicit renders (`render "users/form"`, `render partial:`/`layout:`), relative bareword renders against the calling view or controller directory, `render_to_string`/`render_to_body`, and positional underscore paths (`render_to_string("shared/notes/_note")`). Opt-in via `--type partials` (not in the default set) while its false-positive rate is validated. Collection renders (`render @users`) and dynamic renders are documented limitations ([#82](https://github.com/kerrizor/keela/pull/82))
 - `Keela::Source`, which holds the concatenated source and its case-folded view
 - `Strategy#used?` and `Strategy#prepare`, so a strategy can give a cheaper equivalent of its `usage_regex`. `Strategy#usage_regex` is unchanged, so existing custom strategies keep working
 
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Usage matches can no longer span a file boundary. The concatenated source joined files with no separator, so a file whose last line lacked a trailing newline glued onto the next file's first line, letting a match exist across a gap that is in no single file. This silently marked some unused code as used. Each file is now newline-terminated before concatenation, affecting every strategy ([#86](https://github.com/kerrizor/keela/pull/86), closes [#83](https://github.com/kerrizor/keela/issues/83))
+- Usage matches can no longer span a file boundary. The concatenated source joined files with no separator, so a file whose last line lacked a trailing newline glued onto the next file's first line, letting a match exist across a gap that is in no single file. This silently marked some unused code as used. Each file is now newline-terminated before concatenation, affecting every strategy ([#86](https://github.com/kerrizor/keela/pull/86))
 - Unused entries are no longer listed more than once per file in reports and baselines when a single definition is extracted from multiple lines (e.g. the same method delegated twice, or a constant declared and referenced) ([#72](https://github.com/kerrizor/keela/pull/72))
 
 ## [0.4.1] - 2026-08-21
