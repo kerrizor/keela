@@ -5,7 +5,7 @@
 Like her namesake (the famous springer spaniel who helped solve cases by finding microscopic traces that eluded forensic teams), Keela sniffs out the dead code that `grep` missed.
 
 ```
-🔍 6 strategies: methods, scopes, constants, delegates, attrs, i18n
+🔍 7 strategies: methods, scopes, constants, delegates, attrs, i18n, partials
 🎯 Baseline mode: only bark at NEW dead code
 📊 JSON output for CI pipelines
 ```
@@ -131,6 +131,10 @@ keela
 keela --type methods
 keela --type scopes
 
+# Opt-in strategies (not in the default run)
+keela --type i18n_keys
+keela --type partials
+
 # Combine multiple types
 keela --type methods,scopes,constants
 
@@ -190,10 +194,11 @@ Keela detects several types of unused code:
 | **delegations** | Unused delegate declarations | `delegate :unused, to: :target` |
 | **attributes** | Unused attr_* declarations | `attr_accessor :unused_attr` |
 | **i18n_keys** | Unused translation keys | `en.users.unused_key` in locale YAML |
+| **partials** | Unused Rails view partials | `app/views/users/_unused.html.erb` |
 
 Run all strategies (default) or target specific ones with `--type`.
 
-**Note:** The `i18n_keys` strategy is not included in `--type all` because it requires scanning YAML locale files. Run it explicitly with `--type i18n_keys`.
+**Note:** The `i18n_keys` and `partials` strategies are not included in `--type all`. Run them explicitly with `--type i18n_keys` or `--type partials`.
 
 ### I18n Keys (Beta)
 
@@ -207,6 +212,18 @@ The following patterns ARE now supported:
 - **Pluralization siblings** - `t('key', count: n)` marks all plural forms as used
 
 Review results carefully and use the exclusion file for known false positives.
+
+### Partials (Beta)
+
+The `partials` strategy is **beta** and may produce false positives. It detects unused Rails view partials (`_*.html.{erb,haml,slim}`) in `app/views` and `ee/app/views`, and resolves usage through `render` (and `render_to_string`/`render_to_body`) calls in views and controllers: explicit paths (`render "users/form"`, `render partial:`/`layout:`), relative bareword renders against the calling file's directory, and positional underscore paths (`render_to_string("shared/notes/_note")`).
+
+It cannot detect:
+
+- **Collection/object rendering** - `render @users` infers the partial from the object's class at runtime, which static analysis cannot resolve
+- **Dynamic rendering** - `render partial_name` where the partial name is a variable
+- **Custom render helpers** - project-specific methods that render a partial from a string path (e.g. `view_to_html_string`)
+
+Partials only reached via these patterns may be reported as unused. Review results carefully and use the exclusion file (or baseline) for known false positives.
 
 ## Limitations
 
