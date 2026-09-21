@@ -31,6 +31,54 @@ class SourceTest < Minitest::Test
     assert_equal "", Keela::Source.from_source_files({}).text
   end
 
+  def test_from_source_files_prevents_cross_file_boundary_matches
+    # Regression for issue #83: the last line of file A may lack a trailing
+    # newline, so joining files with no separator glues it onto the first line
+    # of file B and manufactures a usage that exists in no single file.
+    #
+    source = Keela::Source.from_source_files(
+      "app/views/users/index.html.erb" => ["<%= render \"users/for"],
+      "app/views/users/show.html.erb" => ["m\" %>\n"]
+    )
+
+    refute_includes source.text, "render \"users/form\""
+    assert_includes source.text, "users/for\nm"
+  end
+
+  def test_from_source_files_treats_an_empty_file_as_no_contribution
+    # An empty file is an empty line array; it must add nothing, not a stray
+    # newline, and must not swallow the separator between its neighbours.
+    #
+    source = Keela::Source.from_source_files(
+      "app/models/user.rb" => ["class User\nend\n"],
+      "app/models/empty.rb" => [],
+      "app/models/post.rb" => ["class Post\nend\n"]
+    )
+
+    assert_equal "class User\nend\nclass Post\nend\n", source.text
+  end
+
+  def test_from_source_files_does_not_double_separate_files_ending_in_newline
+    source = Keela::Source.from_source_files(
+      "app/models/user.rb" => ["class User\n", "end\n"],
+      "app/models/post.rb" => ["class Post\n", "end\n"]
+    )
+
+    refute_includes source.text, "\n\n"
+  end
+
+  def test_from_source_files_across_files_stays_foldable_with_non_ascii
+    # The synthesized boundary newlines must not perturb the fold-length
+    # invariant fold_preserves_matching? relies on, even with non-ASCII text.
+    #
+    source = Keela::Source.from_source_files(
+      "app/models/user.rb" => ["# café\n"],
+      "app/models/post.rb" => ["class Post\nend\n"]
+    )
+
+    assert_predicate source, :fold_preserves_matching?
+  end
+
   # folded
 
   def test_folded_downcases_ascii
