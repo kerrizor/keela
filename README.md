@@ -221,9 +221,10 @@ It cannot detect:
 
 - **Collection/object rendering** - `render @users` infers the partial from the object's class at runtime, which static analysis cannot resolve
 - **Dynamic rendering** - `render partial_name` where the partial name is a variable
-- **Custom render helpers** - project-specific methods that render a partial from a string path (e.g. `view_to_html_string`)
 
-Partials only reached via these patterns may be reported as unused. Review results carefully and use the exclusion file (or baseline) for known false positives.
+**Custom render helpers** (project-specific methods that render a partial from a string path, e.g. `view_to_html_string`) are not recognized by default, but you can register them with the `render_helpers` option so their partials are not false-flagged. See [Customizing Render Helpers Per Strategy](#customizing-render-helpers-per-strategy).
+
+Partials only reached via the undetectable patterns above may be reported as unused. Review results carefully and use the exclusion file (or baseline) for known false positives.
 
 ## Limitations
 
@@ -329,6 +330,23 @@ strategies:
 ```
 
 This is useful when your project has code in non-standard locations (like `lib/` or enterprise edition directories) that you want Keela to check for unused definitions.
+
+### Customizing Render Helpers Per Strategy
+
+The `partials` strategy recognizes `render`, `render_to_string`, and `render_to_body` when detecting partial usage. If your project renders partials through custom helper methods that take a string path, register them under `render_helpers` so their partials are not reported as unused:
+
+```yaml
+# keela.yml
+strategies:
+  partials:
+    render_helpers:
+      - view_to_html_string
+      - tabs_json
+```
+
+With the above, a call like `view_to_html_string("shared/notes/_note")` marks `shared/notes/note` as used.
+
+Configured helpers are matched for **explicit paths only** (positional path strings, positional underscore paths, and `partial:`/`layout:` keys). They are deliberately not used for relative bareword resolution (`view_to_html_string("form")` is not resolved against the calling file's directory), since an arbitrary helper name is too ambiguous to safely resolve a bare name. Relative bareword resolution stays limited to `render`/`render_to_string`/`render_to_body`.
 
 ### Customizing Which Files to Scan
 
