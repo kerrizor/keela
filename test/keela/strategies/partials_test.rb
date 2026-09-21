@@ -330,19 +330,6 @@ class PartialsIntegrationTest < Minitest::Test
     assert_includes unused_names(scanner_for), "users/form_wrapper"
   end
 
-  # ERB comments (<%#) are NOT skipped by skip_comments? (which only skips lines
-  # starting with #), so render calls in ERB comments ARE detected as usage.
-  # This is a known limitation — documenting the actual behavior here.
-  #
-  def test_erb_comments_are_not_skipped
-    FileUtils.mkdir_p("app/views/users")
-    File.write("app/views/users/_form.html.erb", "<form></form>")
-    File.write("app/views/users/index.html.erb", "<%# render 'users/form' %>")
-
-    # ERB comment is NOT skipped, so the partial is marked as used
-    refute_includes unused_names(scanner_for), "users/form"
-  end
-
   # render layout: "users/form" renders a partial as a layout, so the partial
   # is used (explicit path, double + single quotes).
   #
@@ -775,5 +762,134 @@ class PartialsRenderHelpersTest < Minitest::Test
     File.write("app/views/projects/blob/no_parens.html.erb", '<%= view_to_html_string "projects/blob/_viewer" %>')
 
     refute_includes unused_names(scanner_for), "projects/blob/viewer"
+  end
+end
+
+class PartialsERBCommentsTest < Minitest::Test
+  def setup
+    Keela.reset_configuration!
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+    Keela.reset_configuration!
+  end
+
+  def scanner_for(patterns: %w[app/**/*.erb app/**/*.rb], extensions: %w[erb rb])
+    config = Keela::Configuration.new
+    config.directory_patterns = patterns
+    config.extensions = extensions
+    Keela::Scanner.new(strategy: Keela::Strategies::Partials.new, configuration: config)
+  end
+
+  def unused_names(scanner)
+    scanner.run(force_report: true)
+    scanner.unused_collection.values.flatten
+  end
+
+  def test_explicit_render_in_erb_comment_does_not_mark_used
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_old_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%# render "users/old_form" %>')
+
+    assert_includes unused_names(scanner_for), "users/old_form"
+  end
+
+  def test_render_in_erb_comment_trim_variants_ignored
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_left.html.erb", "<form></form>")
+    File.write("app/views/users/_right.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", <<~ERB)
+      <%-# render "users/left" %>
+      <%# render "users/right" -%>
+    ERB
+
+    names = unused_names(scanner_for)
+    assert_includes names, "users/left"
+    assert_includes names, "users/right"
+  end
+
+  # Only the comment tag is stripped, so a real render sharing the line survives.
+  #
+  def test_real_render_same_line_as_comment_still_counts
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/_old.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/form" %> <%# render "users/old" %>')
+
+    names = unused_names(scanner_for)
+    refute_includes names, "users/form"
+    assert_includes names, "users/old"
+  end
+
+  # A <%= output %> tag has = not # after <%, so it must not be stripped.
+  #
+  def test_output_tag_render_still_counts
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # A <% code %> tag has no # after <%, so it must not be stripped.
+  #
+  def test_code_tag_render_still_counts
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<% render "users/form" %>')
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # Stripping must also cover the bareword-resolution path.
+  #
+  def test_bareword_render_in_erb_comment_does_not_resolve
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/show.html.erb", '<%# render "form" %>')
+
+    assert_includes unused_names(scanner_for), "users/form"
+  end
+
+  # Stripping must also cover the positional-underscore path.
+  #
+  def test_positional_underscore_render_in_erb_comment_does_not_mark_used
+    FileUtils.mkdir_p("app/views/shared/notes")
+    File.write("app/views/shared/notes/_note.html.erb", "<div></div>")
+    File.write("app/views/shared/notes/index.html.erb", '<%# render "shared/notes/_note" %>')
+
+    assert_includes unused_names(scanner_for), "shared/notes/note"
+  end
+
+  # Out of scope: single-line stripping does not cross newlines, so a render in
+  # a multi-line ERB comment is still counted.
+  #
+  def test_multiline_erb_comment_render_is_still_counted
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", <<~ERB)
+      <%#
+        render "users/form"
+      %>
+    ERB
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # Out of scope: HAML comments are not stripped, so a render in a HAML comment
+  # is still counted.
+  #
+  def test_haml_comment_render_is_still_counted
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.haml", "%form")
+    File.write("app/views/users/index.html.haml", '-# = render "users/form"')
+
+    scanner = scanner_for(patterns: %w[app/**/*.haml], extensions: %w[haml])
+    refute_includes unused_names(scanner), "users/form"
   end
 end
