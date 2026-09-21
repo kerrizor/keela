@@ -931,4 +931,91 @@ class ScannerMultiMethodDelegateTest < Minitest::Test
   end
 end
 
+class ScannerUsageDetectionTest < Minitest::Test
+  # A strategy that records how the scanner drove it.
+  class RecordingStrategy < Keela::Strategies::Methods
+    attr_reader :prepared, :asked
 
+    def initialize
+      super
+      @prepared = []
+      @asked = []
+    end
+
+    def prepare(source)
+      @prepared << source
+    end
+
+    def used?(definition_name, source)
+      @asked << definition_name
+      super
+    end
+  end
+
+  def setup
+    @strategy = RecordingStrategy.new
+    @scanner = Keela::Scanner.new(strategy: @strategy, configuration: Keela::Configuration.new)
+    @scanner.instance_variable_set(:@source_files, {
+      "app/models/user.rb" => ["def used_method\n", "def unused_method\n"],
+      "app/models/post.rb" => ["used_method\n"]
+    })
+  end
+
+  def test_prepares_the_source_once_in_the_parent_before_forking_workers
+    @scanner.send(:find_unused, @scanner.send(:find_definitions))
+
+    assert_equal 1, @strategy.prepared.size
+  end
+
+  def test_per_definition_work_happens_in_forked_workers
+    # Nothing #used? records survives back to the parent, which is the reason
+    # #prepare has to build the source views before the fork rather than
+    # letting each worker build its own.
+    @scanner.send(:find_unused, @scanner.send(:find_definitions))
+
+    assert_empty @strategy.asked
+  end
+
+  def test_routes_usage_detection_through_used?
+    always_used = Class.new(Keela::Strategies::Methods) do
+      def used?(_definition_name, _source) = true
+    end.new
+    never_used = Class.new(Keela::Strategies::Methods) do
+      def used?(_definition_name, _source) = false
+    end.new
+
+    assert_empty unused_names_with(always_used)
+    assert_equal %w[unused_method used_method], unused_names_with(never_used).sort
+  end
+
+  def test_prepares_the_same_source_it_then_matches_against
+    @scanner.send(:find_unused, @scanner.send(:find_definitions))
+    source = @strategy.prepared.first
+
+    assert_kind_of Keela::Source, source
+    assert_includes source.text, "def used_method"
+    assert_includes source.text, "used_method\n"
+  end
+
+  def test_builds_the_source_from_every_line_of_every_file
+    @scanner.send(:find_unused, @scanner.send(:find_definitions))
+
+    assert_equal "def used_method\ndef unused_method\nused_method\n",
+      @strategy.prepared.first.text
+  end
+
+  def test_finds_the_unused_method_and_not_the_used_one
+    @scanner.send(:find_unused, @scanner.send(:find_definitions))
+
+    assert_equal({ "app/models/user.rb" => ["unused_method"] }, @scanner.unused_collection)
+  end
+
+  private
+
+  def unused_names_with(strategy)
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: Keela::Configuration.new)
+    scanner.instance_variable_set(:@source_files, @scanner.source_files)
+    scanner.send(:find_unused, scanner.send(:find_definitions))
+    scanner.unused_collection.values.flatten
+  end
+end
