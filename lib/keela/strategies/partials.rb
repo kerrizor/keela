@@ -73,15 +73,12 @@ module Keela
       # The leading negative lookbehind anchors the method on its left so that
       # prerender/foo_render(_to_string) do not count as a render.
       #
-      BAREWORD_RENDER_REGEX = /(?<!\w)#{RENDER_METHOD}(?:(?:partial|layout):\s*)?["']([^"'\/]+)["']/
-
-      # A positional string whose basename starts with _ names a partial file
-      # directly: render_to_string("shared/notes/_note") uses shared/notes/note.
-      # There is no partial:/layout: keyword here, so it is handled separately
-      # from #usage_regex and the bareword path. Only the leading _ of the
-      # BASENAME is stripped; intermediate path segments are kept verbatim.
+      # This uses RENDER_METHOD, not #render_method_pattern, on purpose:
+      # configured render_helpers must never enable bareword-relative resolution.
+      # A bare 'form' passed to an arbitrary app helper is too ambiguous to
+      # safely resolve against the caller's directory.
       #
-      POSITIONAL_UNDERSCORE_REGEX = /(?<!\w)#{RENDER_METHOD}["']([^"']*\/_[^"'\/]+)["']/
+      BAREWORD_RENDER_REGEX = /(?<!\w)#{RENDER_METHOD}(?:(?:partial|layout):\s*)?["']([^"'\/]+)["']/
 
       def name
         "partials"
@@ -116,7 +113,10 @@ module Keela
         # The leading negative lookbehind anchors the method on its left so that
         # prerender/foo_render do not count as a render.
         #
-        /(?<!\w)#{RENDER_METHOD}(?:(?:partial|layout):\s*)?["']#{Regexp.quote(name)}["']/
+        # Configured render_helpers extend the method token here (explicit-path
+        # matching only) via #render_method_pattern.
+        #
+        /(?<!\w)#{render_method_pattern}(?:(?:partial|layout):\s*)?["']#{Regexp.quote(name)}["']/
       end
 
       def skip_comments?
@@ -136,7 +136,7 @@ module Keela
           # resolved regardless of the caller's directory. "shared/notes/_note"
           # -> "shared/notes/note" (strip the leading _ of the basename only).
           #
-          content.scan(POSITIONAL_UNDERSCORE_REGEX).each do |(path)|
+          content.scan(positional_underscore_regex).each do |(path)|
             used << path.sub(%r{/_([^/]+)$}, '/\1')
           end
 
@@ -162,6 +162,44 @@ module Keela
         return Regexp.last_match(1) if filepath =~ CONTROLLER_REGEX
 
         nil
+      end
+
+      # A positional string whose basename starts with _ names a partial file
+      # directly: render_to_string("shared/notes/_note") uses shared/notes/note.
+      # There is no partial:/layout: keyword here, so it is handled separately
+      # from #usage_regex and the bareword path. Only the leading _ of the
+      # BASENAME is stripped; intermediate path segments are kept verbatim.
+      #
+      # A method (not a constant) so configured render_helpers extend the
+      # recognized method token via #render_method_pattern.
+      #
+      def positional_underscore_regex
+        /(?<!\w)#{render_method_pattern}["']([^"']*\/_[^"'\/]+)["']/
+      end
+
+      # The recognized render-method token for EXPLICIT-PATH matching. Defaults
+      # to RENDER_METHOD; when the partials strategy is configured with
+      # render_helpers, each helper name is added to the alternation so an
+      # app-specific helper that renders a partial from a string path is treated
+      # like render for explicit-path detection.
+      #
+      #   strategies:
+      #     partials:
+      #       render_helpers:
+      #         - view_to_html_string
+      #         - tabs_json
+      #
+      # Helper names are Regexp.quote'd so metacharacters match literally, and
+      # the caller keeps the (?<!\w) left-anchor so tabs_json does not match
+      # my_tabs_json. Returns RENDER_METHOD unchanged when none are configured,
+      # so default behavior is byte-identical to today.
+      #
+      def render_method_pattern
+        helpers = Keela.configuration.options_for(name)["render_helpers"]
+        return RENDER_METHOD unless helpers.is_a?(Array) && helpers.any?
+
+        quoted = helpers.map { |h| Regexp.quote(h.to_s) }
+        /(?:render(?:_to_string|_to_body)?|#{quoted.join('|')})\s*\(?\s*/
       end
     end
   end

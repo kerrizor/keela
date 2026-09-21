@@ -594,3 +594,186 @@ class PartialsIntegrationTest < Minitest::Test
     assert_includes unused_names(scanner_for), "users/form"
   end
 end
+
+class PartialsRenderHelpersTest < Minitest::Test
+  def setup
+    Keela.reset_configuration!
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+    Keela.reset_configuration!
+  end
+
+  def configure_helpers(*helpers)
+    Keela.configuration.strategy_options = {
+      "partials" => { "render_helpers" => helpers }
+    }
+  end
+
+  def scanner_for(patterns: %w[app/**/*.erb app/**/*.rb], extensions: %w[erb rb])
+    config = Keela::Configuration.new
+    config.directory_patterns = patterns
+    config.extensions = extensions
+    Keela::Scanner.new(strategy: Keela::Strategies::Partials.new, configuration: config)
+  end
+
+  def unused_names(scanner)
+    scanner.run(force_report: true)
+    scanner.unused_collection.values.flatten
+  end
+
+  # A configured helper called with a positional full path marks that partial
+  # used, matching GitLab's view_to_html_string("projects/blob/_viewer").
+  #
+  def test_configured_helper_positional_path_marks_used
+    configure_helpers("view_to_html_string")
+    FileUtils.mkdir_p("app/views/projects/blob")
+    File.write("app/views/projects/blob/_viewer.html.erb", "<div></div>")
+    File.write("app/views/projects/blob/show.html.erb", '<%= view_to_html_string("projects/blob/_viewer") %>')
+
+    refute_includes unused_names(scanner_for), "projects/blob/viewer"
+  end
+
+  # A configured helper resolves positional-underscore paths the same way render
+  # does: helper("a/_b") -> a/b.
+  #
+  def test_configured_helper_positional_underscore_marks_used
+    configure_helpers("view_to_html_string")
+    FileUtils.mkdir_p("app/views/a")
+    File.write("app/views/a/_b.html.erb", "<div></div>")
+    File.write("app/views/a/index.html.erb", '<%= view_to_html_string("a/_b") %>')
+
+    refute_includes unused_names(scanner_for), "a/b"
+  end
+
+  # A configured helper honors the partial:/layout: keyword form too, matching
+  # render's explicit-path handling (the standard Rails partial: form uses the
+  # logical name without the leading underscore).
+  #
+  def test_configured_helper_partial_key_marks_used
+    configure_helpers("tabs_json")
+    FileUtils.mkdir_p("app/views/shared/milestones")
+    File.write("app/views/shared/milestones/_tab.html.erb", "<div></div>")
+    File.write("app/views/shared/milestones/index.html.erb", '<%= tabs_json(partial: "shared/milestones/tab") %>')
+
+    refute_includes unused_names(scanner_for), "shared/milestones/tab"
+  end
+
+  # A helper name containing regex metacharacters is matched literally, so
+  # foo.bar("x/y") matches but fooXbar("x/y") does not.
+  #
+  def test_configured_helper_name_metacharacters_are_literal
+    configure_helpers("foo.bar")
+    FileUtils.mkdir_p("app/views/x")
+    File.write("app/views/x/_y.html.erb", "<div></div>")
+    File.write("app/views/x/_z.html.erb", "<div></div>")
+    File.write("app/views/x/index.html.erb", <<~ERB)
+      <%= foo.bar("x/_y") %>
+      <%= fooXbar("x/_z") %>
+    ERB
+
+    names = unused_names(scanner_for)
+    refute_includes names, "x/y"
+    assert_includes names, "x/z"
+  end
+
+  # An UNconfigured helper is ignored: other_helper("a/b") does not mark a/b.
+  #
+  def test_unconfigured_helper_is_ignored
+    configure_helpers("view_to_html_string")
+    FileUtils.mkdir_p("app/views/a")
+    File.write("app/views/a/_b.html.erb", "<div></div>")
+    File.write("app/views/a/index.html.erb", '<%= other_helper("a/_b") %>')
+
+    assert_includes unused_names(scanner_for), "a/b"
+  end
+
+  # The key safety guarantee: a configured helper NEVER enables bareword-relative
+  # resolution. view_to_html_string("form") (no slash) must NOT resolve to
+  # caller_dir/form the way render "form" would.
+  #
+  def test_configured_helper_bareword_does_not_resolve
+    configure_helpers("view_to_html_string")
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/show.html.erb", '<%= view_to_html_string("form") %>')
+
+    assert_includes unused_names(scanner_for), "users/form"
+  end
+
+  # The left word-boundary applies to configured helpers: a prefixed token like
+  # my_tabs_json("a/b") is not the configured tabs_json helper.
+  #
+  def test_prefixed_configured_helper_is_rejected
+    configure_helpers("tabs_json")
+    FileUtils.mkdir_p("app/views/a")
+    File.write("app/views/a/_b.html.erb", "<div></div>")
+    File.write("app/views/a/index.html.erb", '<%= my_tabs_json("a/_b") %>')
+
+    assert_includes unused_names(scanner_for), "a/b"
+  end
+
+  # Regression: with NO render_helpers configured, a plain render "a/b" still
+  # marks the partial used (default behavior is unchanged).
+  #
+  def test_no_helpers_configured_plain_render_still_works
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
+
+    refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # Regression: with NO render_helpers configured, a custom helper is NOT
+  # recognized, so its target partial stays unused.
+  #
+  def test_no_helpers_configured_custom_helper_not_recognized
+    FileUtils.mkdir_p("app/views/a")
+    File.write("app/views/a/_b.html.erb", "<div></div>")
+    File.write("app/views/a/index.html.erb", '<%= view_to_html_string("a/_b") %>')
+
+    assert_includes unused_names(scanner_for), "a/b"
+  end
+
+  # Multiple helpers configured at once (the realistic common config): a partial
+  # rendered via one helper AND a different partial rendered via another are
+  # both recognized as used in the same run.
+  #
+  def test_multiple_configured_helpers_all_recognized
+    configure_helpers("view_to_html_string", "tabs_json")
+    FileUtils.mkdir_p("app/views/projects/blob")
+    FileUtils.mkdir_p("app/views/shared/milestones")
+    File.write("app/views/projects/blob/_viewer.html.erb", "<div></div>")
+    File.write("app/views/shared/milestones/_issues_tab.html.erb", "<div></div>")
+    File.write("app/views/projects/blob/show.html.erb", '<%= view_to_html_string("projects/blob/_viewer") %>')
+    File.write("app/views/shared/milestones/index.html.erb", '<%= tabs_json("shared/milestones/_issues_tab") %>')
+
+    names = unused_names(scanner_for)
+    refute_includes names, "projects/blob/viewer"
+    refute_includes names, "shared/milestones/issues_tab"
+  end
+
+  # A configured helper tolerates the same whitespace/paren variations as base
+  # render (RENDER_METHOD's \s*\(?\s* tail): a space before the paren, a newline
+  # inside the parens, and the no-parens form all resolve the partial.
+  #
+  def test_configured_helper_whitespace_and_paren_variations
+    configure_helpers("view_to_html_string")
+    FileUtils.mkdir_p("app/views/projects/blob")
+    File.write("app/views/projects/blob/_viewer.html.erb", "<div></div>")
+    File.write("app/views/projects/blob/space_paren.html.erb", '<%= view_to_html_string ("projects/blob/_viewer") %>')
+    File.write("app/views/projects/blob/newline.html.erb", <<~ERB)
+      <%= view_to_html_string(
+        "projects/blob/_viewer"
+      ) %>
+    ERB
+    File.write("app/views/projects/blob/no_parens.html.erb", '<%= view_to_html_string "projects/blob/_viewer" %>')
+
+    refute_includes unused_names(scanner_for), "projects/blob/viewer"
+  end
+end
