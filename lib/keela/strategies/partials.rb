@@ -123,6 +123,23 @@ module Keela
         true
       end
 
+      # Build the comment-stripped view once in the parent so workers inherit it
+      # copy-on-write instead of each rebuilding a codebase-sized string.
+      #
+      def prepare(source)
+        @stripped_source = source
+        @stripped_text = strip_erb_comments(source.text)
+      end
+
+      # Match against a view with single-line ERB comments removed, so a render
+      # inside <%# ... %> does not count as a usage. Falls back to stripping on
+      # demand if #prepare was not run for this source (defensive: #used? can be
+      # called directly in tests, or on a different source than #prepare saw).
+      #
+      def used?(name, source)
+        usage_regex(name).match?(stripped_text_for(source))
+      end
+
       # Resolve bareword renders against the calling file's directory so that a
       # short render marks the fully-qualified partial used.
       #
@@ -130,7 +147,7 @@ module Keela
         used = Set.new
 
         source_files.each do |filepath, lines|
-          content = lines.join("\n")
+          content = strip_erb_comments(lines.join("\n"))
 
           # Positional-underscore paths are absolute logical names, so they are
           # resolved regardless of the caller's directory. "shared/notes/_note"
@@ -152,6 +169,29 @@ module Keela
       end
 
       private
+
+      # The comment-stripped text for +source+, using the view #prepare built
+      # when it saw this same source, otherwise stripping on demand.
+      #
+      def stripped_text_for(source)
+        return @stripped_text if defined?(@stripped_source) && @stripped_source.equal?(source)
+
+        strip_erb_comments(source.text)
+      end
+
+      # Blank out single-line ERB comment tags so renders inside them are not
+      # matched. Matches <% (optional -) then #, up to %> (optional -), on one
+      # line; a <%= output %> or <% code %> tag has no # after <% and is left
+      # intact. Multi-line ERB comments and HAML comments are out of scope: the
+      # dot does not cross newlines, so they are not matched.
+      #
+      # Replaced with same-length spaces (via the block form, so the length is
+      # the matched span's, not a global) to preserve positions and line
+      # structure.
+      #
+      def strip_erb_comments(text)
+        text.gsub(/<%\s*-?\s*#.*?-?\s*%>/) { |match| " " * match.length }
+      end
 
       # The directory a bareword render resolves against: the view's own dir, or
       # the controller-derived dir. Returns nil for files that render nothing
