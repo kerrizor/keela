@@ -21,9 +21,23 @@ module Keela
     end
 
     # Build from the scanner's { filename => [lines] } hash.
+    #
+    # Each file's lines are joined as-is, then a newline is guaranteed at the
+    # end of every non-empty file before files are concatenated. Without that
+    # boundary a file whose last line lacks a trailing newline glues onto the
+    # next file's first line, letting a usage match span a gap that exists in
+    # no single file (issue #83). Empty files contribute nothing.
+    #
     def self.from_source_files(source_files)
-      new(source_files.values.flatten.join)
+      new(source_files.values.map { |lines| terminate(lines.join) }.join)
     end
+
+    def self.terminate(text)
+      return text if text.empty? || text.end_with?("\n")
+
+      "#{text}\n"
+    end
+    private_class_method :terminate
 
     # Unicode full case folding of #text.
     #
