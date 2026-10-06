@@ -214,6 +214,17 @@ module Keela
       # (e.g., I18n lazy lookup)
       additional_used = strategy.additional_used_names(source_files)
 
+      # A strategy whose #additional_used_names enumerates every used name in one
+      # pass (e.g. partials) decides purely by Set membership. Skip building the
+      # derived source views and the per-definition #used? scan entirely: that
+      # per-definition scan is O(N x whole-codebase) and is the hot path we are
+      # avoiding here.
+      #
+      if strategy.detects_all_usage?
+        unused = definitions.reject { |definition| additional_used.include?(definition[:name]) }
+        return record_unused(unused)
+      end
+
       # Build the source views the strategy needs here, in the parent, so that
       # the workers Parallel forks below inherit them instead of each building
       # its own copy of a string the size of the whole codebase.
@@ -228,10 +239,16 @@ module Keela
         strategy.used?(definition[:name], source) ? [] : definition
       end
 
-      # A single logical definition can be extracted from multiple lines
-      # (e.g. the same method delegated twice, or a constant declared and
-      # referenced), so guard against listing the same name twice per file.
-      #
+      record_unused(unused)
+    end
+
+    # Collect the unused definitions into @unused_collection / @source_locations.
+    #
+    # A single logical definition can be extracted from multiple lines (e.g. the
+    # same method delegated twice, or a constant declared and referenced), so
+    # guard against listing the same name twice per file.
+    #
+    def record_unused(unused)
       unused.each do |unused_def|
         names = @unused_collection[unused_def[:file]]
         next if names.include?(unused_def[:name])

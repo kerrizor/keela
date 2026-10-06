@@ -15,6 +15,13 @@ class PartialsStrategyTest < Minitest::Test
     assert @strategy.skip_comments?
   end
 
+  # Partials enumerate all usage in a single pass, so the scanner decides by Set
+  # membership and skips the per-definition #used? scan.
+  #
+  def test_detects_all_usage
+    assert @strategy.detects_all_usage?
+  end
+
   def test_definition_file_pattern_matches_erb_partials
     assert_match @strategy.definition_file_pattern, "app/views/users/_form.html.erb"
   end
@@ -561,6 +568,32 @@ class PartialsIntegrationTest < Minitest::Test
     File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
 
     refute_includes unused_names(scanner_for), "users/form"
+  end
+
+  # The whole point of the single-pass path: the scanner must NOT fall back to a
+  # per-definition #used? scan for partials. If #used? is called during a run the
+  # O(N x codebase) hot path is back, so make it blow up and prove detection
+  # still works end to end through #additional_used_names alone.
+  #
+  def test_detection_never_calls_per_definition_used
+    FileUtils.mkdir_p("app/views/users")
+    File.write("app/views/users/_form.html.erb", "<form></form>")
+    File.write("app/views/users/_dead.html.erb", "<div></div>")
+    File.write("app/views/users/index.html.erb", '<%= render "users/form" %>')
+
+    strategy = Keela::Strategies::Partials.new
+    def strategy.used?(*)
+      raise "per-definition used? scan must not run for partials"
+    end
+
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[app/**/*.erb app/**/*.rb]
+    config.extensions = %w[erb rb]
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    names = unused_names(scanner)
+    refute_includes names, "users/form"
+    assert_includes names, "users/dead"
   end
 
   # A positional VARIABLE render is dynamic and stays undetected: the partial

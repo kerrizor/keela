@@ -58,4 +58,8 @@ class StrategyTest < Minitest::Test
     assert_nil @strategy.prepare(source)
     refute source.instance_variable_defined?(:@folded)
   end
+
+  def test_detects_all_usage_defaults_to_false
+    refute @strategy.detects_all_usage?
+  end
 end

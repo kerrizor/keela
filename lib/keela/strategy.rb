@@ -83,6 +83,20 @@ module Keela
       Set.new
     end
 
+    # Whether #additional_used_names already collects EVERY used name in a single
+    # pass, making the per-definition #used? scan redundant.
+    #
+    # Defaults to false: the scanner checks #additional_used_names first and then
+    # falls back to #used? per definition. A strategy that returns true here is
+    # declaring its #additional_used_names is complete, so the scanner skips the
+    # per-definition scan entirely. This turns O(N_definitions x codebase) regex
+    # scanning into a single O(codebase) pass plus Set membership tests, for
+    # strategies whose usage can be enumerated in one sweep (e.g. partials).
+    #
+    def detects_all_usage?
+      false
+    end
+
     private
 
     def configured_pattern

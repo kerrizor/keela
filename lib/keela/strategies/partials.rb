@@ -55,6 +55,13 @@ module Keela
       #
       CONTROLLER_REGEX = %r{(?:ee/)?app/controllers/(.+)_controller\.rb$}.freeze
 
+      # A view directly under app/views/ with no intermediate directory, e.g.
+      # app/views/index.html.erb. Its caller directory is the root (""), so a
+      # bareword render "foo" from here resolves to the root-level partial "foo".
+      # VIEW_DIR_REGEX requires an intermediate dir and so never matches these.
+      #
+      ROOT_VIEW_REGEX = %r{(?:ee/)?app/views/[^/]+\.html\.(?:erb|haml|slim)$}.freeze
+
       # The render family we recognize: render, plus render_to_string and
       # render_to_body, which render partials the same way (Rails/GitLab use both
       # off-request, e.g. in mailers and background jobs). An optional opening
@@ -123,6 +130,14 @@ module Keela
         true
       end
 
+      # #additional_used_names collects every rendered partial name in a single
+      # pass, so the scanner decides by Set membership and skips the per-definition
+      # #used? scan. See the note on #additional_used_names.
+      #
+      def detects_all_usage?
+        true
+      end
+
       # Build the comment-stripped view once in the parent so workers inherit it
       # copy-on-write instead of each rebuilding a codebase-sized string.
       #
@@ -136,18 +151,55 @@ module Keela
       # demand if #prepare was not run for this source (defensive: #used? can be
       # called directly in tests, or on a different source than #prepare saw).
       #
+      # Retained as the Strategy contract and for direct callers (tests), but the
+      # scanner no longer drives detection through it: #additional_used_names now
+      # collects every used name in a single pass over the corpus, so the scanner
+      # decides via that Set instead of calling #used? per definition. See the
+      # note on #additional_used_names.
+      #
       def used?(name, source)
         usage_regex(name).match?(stripped_text_for(source))
       end
 
-      # Resolve bareword renders against the calling file's directory so that a
-      # short render marks the fully-qualified partial used.
+      # The set of partial names used anywhere in +source_files+, collected in a
+      # SINGLE pass over the corpus.
+      #
+      # This is the whole-run detection path for partials. The scanner checks a
+      # definition against this Set and never calls #used? for a name that is in
+      # it, so extracting every used name here (not just the bareword/positional
+      # ones) turns detection from O(N_partials x codebase) per-definition regex
+      # scans into O(codebase + N_partials): we scan each file once, collect the
+      # rendered names, then membership-test each definition. This is the fix for
+      # the partials strategy being CPU-bound on large codebases.
+      #
+      # Three render forms are collected, each the single-pass twin of a branch
+      # that used to be matched per-definition:
+      #
+      #   1. Explicit slashed paths (the #usage_regex cases): render "users/form",
+      #      render partial:/layout: "users/form", render_to_string/_to_body, and
+      #      configured render_helpers. Captured verbatim as the logical name.
+      #   2. Positional-underscore paths: render "shared/notes/_note" names the
+      #      file directly -> "shared/notes/note" (strip the basename's leading _).
+      #   3. Barewords resolved against the caller's directory: render "form" in
+      #      app/views/users/* or users_controller.rb -> "users/form".
+      #
+      # All three share the comment-stripped content and the same left word-anchor
+      # and render-method rules as #usage_regex, so the collected strings are
+      # exactly what the per-name regex would have matched.
       #
       def additional_used_names(source_files)
         used = Set.new
 
         source_files.each do |filepath, lines|
           content = strip_erb_comments(lines.join("\n"))
+
+          # Explicit slashed paths: the single-pass twin of #usage_regex. A
+          # basename leading _ is stripped so "users/_form" and "users/form"
+          # agree with the positional-underscore form and with definition names.
+          #
+          content.scan(explicit_path_regex).each do |(path)|
+            used << path.sub(%r{(^|/)_([^/]+)$}, '\1\2')
+          end
 
           # Positional-underscore paths are absolute logical names, so they are
           # resolved regardless of the caller's directory. "shared/notes/_note"
@@ -161,7 +213,10 @@ module Keela
           next unless dir
 
           content.scan(BAREWORD_RENDER_REGEX).each do |(bareword)|
-            used << "#{dir}/#{bareword}"
+            # dir is "" for a root-level view, so join without a separator to
+            # resolve render "foo" -> "foo" rather than "/foo".
+            #
+            used << (dir.empty? ? bareword : "#{dir}/#{bareword}")
           end
         end
 
@@ -193,15 +248,32 @@ module Keela
         text.gsub(/<%\s*-?\s*#.*?-?\s*%>/) { |match| " " * match.length }
       end
 
-      # The directory a bareword render resolves against: the view's own dir, or
-      # the controller-derived dir. Returns nil for files that render nothing
-      # resolvable this way.
+      # The directory a bareword render resolves against: the view's own dir, the
+      # controller-derived dir, or "" for a root-level view (render "foo" from
+      # app/views/index.html.erb resolves to the root partial "foo"). Returns nil
+      # for files that render nothing resolvable this way.
       #
       def caller_directory(filepath)
         return Regexp.last_match(1) if filepath =~ VIEW_DIR_REGEX
         return Regexp.last_match(1) if filepath =~ CONTROLLER_REGEX
+        return "" if filepath =~ ROOT_VIEW_REGEX
 
         nil
+      end
+
+      # The single-pass twin of #usage_regex: instead of matching one known name,
+      # CAPTURE the rendered path so one scan collects every explicitly-rendered
+      # partial. Same left word-anchor, same optional partial:/layout: keyword,
+      # same #render_method_pattern (so configured render_helpers are honored),
+      # as #usage_regex.
+      #
+      # The captured path must contain at least one slash: barewords (no slash)
+      # are resolved relative to the caller by #additional_used_names via
+      # BAREWORD_RENDER_REGEX, exactly as #usage_regex only ever matched slashed
+      # logical names. Requiring a slash here keeps the two paths disjoint.
+      #
+      def explicit_path_regex
+        %r{(?<!\w)#{render_method_pattern}(?:(?:partial|layout):\s*)?["']([^"'/]+(?:/[^"'/]+)+)["']}
       end
 
       # A positional string whose basename starts with _ names a partial file
