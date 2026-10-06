@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-06
+
 ### Changed
 
 - **The `partials` strategy is dramatically faster on large codebases, up to ~27× less CPU.** It now collects every rendered partial in a single pass over the source instead of re-scanning the whole codebase once per partial. Measured against a large reference Rails monolith, partials went from the slowest strategy to effectively free, and no longer meaningfully slows a combined `--type all,partials` run. The report is unchanged ([#96](https://github.com/kerrizor/keela/pull/96))
