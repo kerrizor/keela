@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
   s.bindir      = "exe"
   s.executables = ["keela"]
 
-  s.add_dependency "parallel", "~> 1.20"
+  s.add_dependency "parallel", "~> 2.0"
   s.add_dependency "rainbow", "~> 3.0"
   s.add_dependency "ruby-progressbar", "~> 1.11"
   s.add_dependency "toon-ruby", "~> 0.1"
