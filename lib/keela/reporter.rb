@@ -36,6 +36,20 @@ module Keela
       print_removed(removed, baseline_path) unless removed.empty?
     end
 
+    def print_stale_exclusions(stale, excluded_path)
+      return if stale.empty?
+
+      count = stale.values.flatten.size
+      message = <<~MESSAGE
+        We have detected #{count} stale #{strategy_name} exclusion(s).
+
+        Their definitions no longer exist; remove them from #{excluded_path}.
+      MESSAGE
+
+      puts Rainbow(message).red.bright
+      puts Rainbow(format_yaml(stale)).red.bright
+    end
+
     def format_report(collection, source_locations = {})
       if source_locations.empty?
         format_yaml(collection)

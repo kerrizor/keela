@@ -133,7 +133,52 @@ class CLITest < Minitest::Test
     end
   end
 
+  def test_reports_stale_exclusion_during_baseline_run_and_exits_nonzero
+    in_tmpdir do
+      setup_clean_model_with_stale_exclusion
+
+      stdout, stderr, status = run_keela("--excluded", "excluded.yml")
+
+      assert_equal 1, status.exitstatus, stderr
+      assert_match(/stale methods exclusion/, stdout)
+      assert_match(/vanished_method/, stdout)
+    end
+  end
+
+  def test_json_output_includes_stale_exclusions
+    in_tmpdir do
+      setup_clean_model_with_stale_exclusion
+
+      stdout, stderr, status = run_keela("--excluded", "excluded.yml", "--format", "json")
+
+      assert_equal 1, status.exitstatus, stderr
+      result = JSON.parse(stdout)
+      assert_equal ["vanished_method"],
+        result.dig("stale_exclusions", "methods", "app/models/user.rb")
+    end
+  end
+
   private
+
+  def setup_clean_model_with_stale_exclusion
+    FileUtils.mkdir_p("app/models")
+    File.write("app/models/user.rb", <<~RUBY)
+      class User
+        def real_method
+        end
+
+        def uses_it
+          real_method
+        end
+      end
+    RUBY
+    File.write(".keela_baseline.yml", "---\n{}")
+    File.write("excluded.yml", <<~YAML)
+      methods:
+        "app/models/user.rb":
+          - vanished_method: "Used dynamically"
+    YAML
+  end
 
   def setup_multiple_strategy_files
     FileUtils.mkdir_p("app/models")

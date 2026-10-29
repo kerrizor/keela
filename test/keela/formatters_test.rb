@@ -81,4 +81,38 @@ class FormattersTest < Minitest::Test
     # scopes should not appear in unused section
     refute_match(/unused:.*scopes:/m, output)
   end
+
+  def test_json_formatter_includes_stale_exclusions
+    stale = { "methods" => { "app/models/user.rb" => ["gone"] }, "scopes" => {} }
+    formatter = Keela::Formatters::Json.new(results: @results, strategies: @strategies, stale_exclusions: stale)
+    output = JSON.parse(formatter.format)
+
+    assert_equal ["gone"], output.dig("stale_exclusions", "methods", "app/models/user.rb")
+    assert_equal 1, output["summary"]["stale_total"]
+  end
+
+  def test_json_formatter_excludes_empty_stale_exclusions
+    stale = { "methods" => {}, "scopes" => {} }
+    formatter = Keela::Formatters::Json.new(results: @results, strategies: @strategies, stale_exclusions: stale)
+    output = JSON.parse(formatter.format)
+
+    refute output["stale_exclusions"].key?("methods")
+    assert_equal 0, output["summary"]["stale_total"]
+  end
+
+  def test_formatter_defaults_stale_exclusions_to_empty
+    formatter = Keela::Formatters::Json.new(results: @results, strategies: @strategies)
+    output = JSON.parse(formatter.format)
+
+    assert_equal 0, output["summary"]["stale_total"]
+  end
+
+  def test_toon_formatter_includes_stale_exclusions
+    stale = { "methods" => { "app/models/user.rb" => ["gone"] }, "scopes" => {} }
+    formatter = Keela::Formatters::Toon.new(results: @results, strategies: @strategies, stale_exclusions: stale)
+    output = formatter.format
+
+    assert_includes output, "stale_exclusions"
+    assert_includes output, "gone"
+  end
 end
