@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **A method named only in a comment is no longer counted as used.** Usage detection matched its regex against the whole source, comments included, so a method whose name appeared in a comment was treated as called and genuinely dead code was never flagged. Whole-line Ruby comments (`.rb`, `.rake`, `.builder`) are now dropped from the usage corpus before matching. HAML is left alone (a leading `#` there is an element id), and `#{}` interpolation and trailing comments are kept, since telling a real `#` from one inside a string or regexp needs a tokenizer ([#104](https://github.com/kerrizor/keela/pull/104))
-- Run every selected strategy in baseline mode even when an earlier strategy fails, so text and structured reports include all unused code findings ([#99](https://github.com/kerrizor/keela/issues/99)).
+- Run every selected strategy in baseline mode even when an earlier strategy fails, so text and structured reports include all unused code findings ([#102](https://github.com/kerrizor/keela/pull/102)).
 
 ## [0.5.1] - 2026-10-06
 
