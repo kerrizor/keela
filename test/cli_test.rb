@@ -4,6 +4,7 @@ require "test_helper"
 require "tmpdir"
 require "fileutils"
 require "open3"
+require "json"
 
 class CLITest < Minitest::Test
   KEELA_ROOT = File.expand_path("../..", __FILE__)
@@ -92,7 +93,61 @@ class CLITest < Minitest::Test
     end
   end
 
+  def test_baseline_reports_unused_code_from_every_strategy
+    in_tmpdir do
+      setup_multiple_strategy_files
+
+      stdout, stderr, status = run_keela("--type", "methods,scopes,constants")
+
+      assert_equal 1, status.exitstatus, stderr
+      assert_includes stdout, "unused_method"
+      assert_includes stdout, "unused_scope"
+      assert_includes stdout, "UNUSED_CONSTANT"
+    end
+  end
+
+  def test_baseline_json_includes_every_strategy_after_a_failure
+    in_tmpdir do
+      setup_multiple_strategy_files
+
+      stdout, stderr, status = run_keela("--type", "methods,scopes,constants", "--format", "json")
+
+      assert_equal 1, status.exitstatus, stderr
+      result = JSON.parse(stdout)
+      assert_equal ["unused_method"], result.dig("unused", "methods", "app/models/user.rb")
+      assert_equal ["unused_scope"], result.dig("unused", "scopes", "app/models/user.rb")
+      assert_equal ["UNUSED_CONSTANT"], result.dig("unused", "constants", "app/models/user.rb")
+      assert_equal 3, result.dig("summary", "total")
+    end
+  end
+
+  def test_successful_later_strategy_does_not_clear_baseline_failure
+    in_tmpdir do
+      setup_test_files
+      File.write(".keela_baseline.yml", "---\n{}")
+
+      stdout, stderr, status = run_keela("--type", "methods,scopes")
+
+      assert_equal 1, status.exitstatus, stderr
+      assert_includes stdout, "unused_method"
+    end
+  end
+
   private
+
+  def setup_multiple_strategy_files
+    FileUtils.mkdir_p("app/models")
+    File.write("app/models/user.rb", <<~RUBY)
+      class User
+        scope :unused_scope, -> { all }
+        UNUSED_CONSTANT = 1
+
+        def unused_method
+        end
+      end
+    RUBY
+    File.write(".keela_baseline.yml", "---\n{}")
+  end
 
   def in_tmpdir
     Dir.mktmpdir do |tmpdir|

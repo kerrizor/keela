@@ -220,11 +220,12 @@ strategies.each_with_index do |strategy, index|
   end
 
   scanner = Keela::Scanner.new(strategy: strategy, baseline: baseline, source_files: source_files)
-  success &&= scanner.run(
+  strategy_success = scanner.run(
     force_report: options[:force_report],
     update_baseline: options[:update_baseline],
     silent: silent_output
   )
+  success &&= strategy_success
 
   # Collect results for structured output formats
   results[strategy.name] = scanner.unused_collection.transform_values(&:to_a)
