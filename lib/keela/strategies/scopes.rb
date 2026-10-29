@@ -18,7 +18,11 @@ module Keela
       end
 
       def usage_regex(name)
-        /(?<!scope :)(?<!def )#{Regexp.quote(name)}\W/
+        # Whitespace-anchoring the lookbehind distinguishes a `scope :name`
+        # definition (preceded by indentation whitespace) from `has_scope :name`
+        # usage (preceded by `_`), which must count as a real usage.
+        #
+        /(?<!\sscope :)(?<!def )#{Regexp.quote(name)}\W/
       end
 
       def skip_comments?
