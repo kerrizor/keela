@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Relaxed the `parallel` dependency from `~> 1.20` to `>= 1.20, < 3`, so keela no longer forces a downgrade in projects already on parallel 2.x, while still supporting 1.x ([#101](https://github.com/kerrizor/keela/pull/101))
+
 ### Fixed
 
 - **A method named only in a comment is no longer counted as used.** Usage detection matched its regex against the whole source, comments included, so a method whose name appeared in a comment was treated as called and genuinely dead code was never flagged. Whole-line Ruby comments (`.rb`, `.rake`, `.builder`) are now dropped from the usage corpus before matching. HAML is left alone (a leading `#` there is an element id), and `#{}` interpolation and trailing comments are kept, since telling a real `#` from one inside a string or regexp needs a tokenizer ([#104](https://github.com/kerrizor/keela/pull/104))
