@@ -79,6 +79,39 @@ class SourceTest < Minitest::Test
     assert_predicate source, :fold_preserves_matching?
   end
 
+  def test_from_source_files_drops_whole_line_ruby_comments
+    source = Keela::Source.from_source_files(
+      "app/models/user.rb" => ["# calls close_epic as a fallback\n", "class User\nend\n"]
+    )
+
+    refute_includes source.text, "close_epic"
+    assert_includes source.text, "class User"
+  end
+
+  def test_from_source_files_keeps_trailing_comments
+    source = Keela::Source.from_source_files(
+      "app/models/user.rb" => ["call_it # mentions close_epic here\n"]
+    )
+
+    assert_includes source.text, "close_epic"
+  end
+
+  def test_from_source_files_keeps_interpolation_lines
+    source = Keela::Source.from_source_files(
+      "app/models/user.rb" => ["  \#{table_name}\n"]
+    )
+
+    assert_includes source.text, "table_name"
+  end
+
+  def test_from_source_files_does_not_strip_comments_from_haml
+    source = Keela::Source.from_source_files(
+      "app/views/users/show.html.haml" => ["#user_profile\n"]
+    )
+
+    assert_includes source.text, "user_profile"
+  end
+
   # folded
 
   def test_folded_downcases_ascii

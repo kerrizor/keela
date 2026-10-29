@@ -14,6 +14,11 @@ module Keela
     # control characters the range ends in.
     ASCII_RANGE = [0x00, 0x7F].map { |code_point| code_point.chr(Encoding::UTF_8) }.join("-").freeze
 
+    # Extensions whose "#" begins a line comment. HAML is excluded on purpose:
+    # there "#id" is an element id, not a comment.
+    #
+    RUBY_EXTENSIONS = %w[.rb .rake .builder].freeze
+
     attr_reader :text
 
     def initialize(text)
@@ -29,8 +34,23 @@ module Keela
     # no single file (issue #83). Empty files contribute nothing.
     #
     def self.from_source_files(source_files)
-      new(source_files.values.map { |lines| terminate(lines.join) }.join)
+      new(source_files.map { |filename, lines| terminate(strip_comments(filename, lines).join) }.join)
     end
+
+    # Drop whole-line Ruby comments from the usage corpus.
+    #
+    # A method name mentioned in a comment is not a call, but the usage regex
+    # matches it anyway and would hide genuinely dead code. Only whole-line
+    # comments are dropped: telling a real "#" from one inside a string, a
+    # regexp, or "#{" interpolation needs a tokenizer, not worth it for the
+    # trailing-comment case.
+    #
+    def self.strip_comments(filename, lines)
+      return lines unless RUBY_EXTENSIONS.include?(File.extname(filename))
+
+      lines.reject { |line| line.match?(/\A\s*#(?!\{)/) }
+    end
+    private_class_method :strip_comments
 
     def self.terminate(text)
       return text if text.empty? || text.end_with?("\n")
