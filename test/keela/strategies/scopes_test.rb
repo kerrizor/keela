@@ -85,4 +85,29 @@ class ScopesStrategyTest < Minitest::Test
     regex = @strategy.usage_regex("active")
     refute_match regex, "def active"
   end
+
+  def test_usage_regex_matches_has_scope_usage
+    regex = @strategy.usage_regex("active")
+    assert_match regex, "has_scope :active, as: :foo"
+  end
+
+  def test_usage_regex_does_not_match_space_indented_scope_definitions
+    regex = @strategy.usage_regex("active")
+    refute_match regex, "  scope :active, -> { }"
+  end
+
+  def test_usage_regex_does_not_match_tab_indented_scope_definitions
+    regex = @strategy.usage_regex("active")
+    refute_match regex, "\tscope :active, -> { }"
+  end
+
+  def test_usage_regex_does_not_match_newline_anchored_scope_definitions
+    regex = @strategy.usage_regex("active")
+    refute_match regex, "\nscope :active, -> { }"
+  end
+
+  def test_usage_regex_matches_usage_in_default_scope
+    regex = @strategy.usage_regex("active")
+    assert_match regex, "default_scope { active }"
+  end
 end
