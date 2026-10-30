@@ -158,6 +158,45 @@ class CLITest < Minitest::Test
     end
   end
 
+  def test_normalize_exclusions_rewrites_file_sorted_and_exits_zero
+    in_tmpdir do
+      File.write("excluded.yml", <<~YAML)
+        methods:
+          "app/models/zebra.rb":
+            - zoo: "z"
+            - apple: "a"
+          "app/models/account.rb":
+            - beta: "b"
+      YAML
+
+      stdout, stderr, status = run_keela("--normalize-exclusions", "--excluded", "excluded.yml")
+
+      assert status.success?, "Should exit 0: #{stderr}"
+      assert_match(/Normalized/, stdout)
+
+      body = File.read("excluded.yml").lines.reject { |l| l.start_with?("#") }.join
+      assert_equal <<~YAML, body
+        ---
+        methods:
+          app/models/account.rb:
+          - beta: b
+          app/models/zebra.rb:
+          - apple: a
+          - zoo: z
+      YAML
+    end
+  end
+
+  def test_normalize_exclusions_missing_file_exits_nonzero
+    in_tmpdir do
+      # No --excluded and no default file present: the dispatch guard fires.
+      _stdout, stderr, status = run_keela("--normalize-exclusions")
+
+      refute status.success?, "Should exit non-zero when no file is found"
+      assert_match(/No exclusion file found/, stderr)
+    end
+  end
+
   private
 
   def setup_clean_model_with_stale_exclusion
