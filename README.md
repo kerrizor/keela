@@ -63,6 +63,7 @@ If a `.keela_baseline.yml` file exists, Keela compares the current scan against 
 | No changes from baseline | ✅ Pass (silent, exit 0) |
 | NEW unused code detected | ❌ Fail (shows new items) |
 | Code REMOVED from baseline | ❌ Fail (prompts to update baseline) |
+| STALE exclusion (its definition is gone) | ❌ Fail (shows stale entries to remove) |
 
 This lets you gradually pay down tech debt while preventing new dead code from sneaking in.
 
@@ -196,8 +197,8 @@ Keela detects several types of unused code:
 | **constants** | Unused constants | `UNUSED_CONSTANT = 'value'` |
 | **delegations** | Unused delegate declarations | `delegate :unused, to: :target` |
 | **attributes** | Unused attr_* declarations | `attr_accessor :unused_attr` |
-| **i18n_keys** | Unused translation keys | `en.users.unused_key` in locale YAML |
-| **partials** | Unused Rails view partials | `app/views/users/_unused.html.erb` |
+| **i18n_keys** _(beta)_ | Unused translation keys | `en.users.unused_key` in locale YAML |
+| **partials** _(beta)_ | Unused Rails view partials | `app/views/users/_unused.html.erb` |
 
 Run all strategies (default) or target specific ones with `--type`.
 
