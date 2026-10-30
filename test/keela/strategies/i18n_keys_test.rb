@@ -443,3 +443,264 @@ class I18nKeysLazyLookupIntegrationTest < Minitest::Test
     assert_includes unused_keys, "users.show.unused_key"
   end
 end
+
+class I18nKeysTextTemplateTest < Minitest::Test
+  def setup
+    @strategy = Keela::Strategies::I18nKeys.new
+  end
+
+  def test_view_path_to_prefix_resolves_text_templates
+    assert_equal "user_mailer.welcome", @strategy.view_path_to_prefix("app/views/user_mailer/welcome.text.erb")
+    assert_equal "user_mailer.welcome", @strategy.view_path_to_prefix("app/views/user_mailer/welcome.text.haml")
+  end
+
+  def test_view_path_to_prefix_still_resolves_html_templates
+    assert_equal "user_mailer.welcome", @strategy.view_path_to_prefix("app/views/user_mailer/welcome.html.erb")
+  end
+
+  def test_additional_used_names_expands_lazy_keys_in_text_template
+    source_files = {
+      "app/views/user_mailer/welcome.text.erb" => ["<%= t('.body') %>"]
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "user_mailer.welcome.body"
+  end
+end
+
+class I18nKeysRubyLazyLookupTest < Minitest::Test
+  def setup
+    @strategy = Keela::Strategies::I18nKeys.new
+  end
+
+  def test_lazy_lookup_in_mailer_rb
+    source_files = {
+      "app/mailers/payment_order_mailer.rb" => <<~RUBY.lines(chomp: true)
+        class PaymentOrderMailer < ApplicationMailer
+          def approval_failed
+            mail(subject: t(".email_text"))
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "payment_order_mailer.approval_failed.email_text"
+  end
+
+  def test_lazy_lookup_in_controller_rb
+    source_files = {
+      "app/controllers/users_controller.rb" => <<~RUBY.lines(chomp: true)
+        class UsersController < ApplicationController
+          def create
+            redirect_to users_path, notice: t(".notice")
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "users.create.notice"
+  end
+
+  def test_lazy_lookup_in_namespaced_mailer_nested_modules
+    source_files = {
+      "app/mailers/admin/user_mailer.rb" => <<~RUBY.lines(chomp: true)
+        module Admin
+          class UserMailer < ApplicationMailer
+            def welcome
+              mail(subject: t(".greeting"))
+            end
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "admin.user_mailer.welcome.greeting"
+  end
+
+  def test_lazy_lookup_in_namespaced_mailer_compact_class
+    source_files = {
+      "app/mailers/admin/user_mailer.rb" => <<~RUBY.lines(chomp: true)
+        class Admin::UserMailer < ApplicationMailer
+          def welcome
+            mail(subject: t(".greeting"))
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "admin.user_mailer.welcome.greeting"
+  end
+
+  def test_lazy_lookup_in_namespaced_controller_nested_modules
+    source_files = {
+      "app/controllers/admin/users_controller.rb" => <<~RUBY.lines(chomp: true)
+        module Admin
+          class UsersController < ApplicationController
+            def create
+              redirect_to admin_users_path, notice: t(".title")
+            end
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "admin.users.create.title"
+  end
+
+  def test_lazy_lookup_in_namespaced_controller_compact_class
+    source_files = {
+      "app/controllers/admin/users_controller.rb" => <<~RUBY.lines(chomp: true)
+        class Admin::UsersController < ApplicationController
+          def create
+            redirect_to admin_users_path, notice: t(".title")
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "admin.users.create.title"
+  end
+
+  def test_nested_lazy_key_resolves
+    source_files = {
+      "app/controllers/users_controller.rb" => <<~RUBY.lines(chomp: true)
+        class UsersController < ApplicationController
+          def create
+            flash[:notice] = t(".a.b")
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "users.create.a.b"
+  end
+
+  def test_lazy_lookup_outside_method_is_ignored
+    source_files = {
+      "app/controllers/users_controller.rb" => <<~RUBY.lines(chomp: true)
+        class UsersController < ApplicationController
+          FOO = t(".before_any_def")
+          def create
+            t(".notice")
+          end
+        end
+      RUBY
+    }
+
+    # The lazy call before any def cannot resolve to a method scope, so it is
+    # skipped. The in-method call still resolves.
+    used = @strategy.additional_used_names(source_files)
+    refute_includes used, "users.before_any_def"
+    refute(used.any? { |k| k.include?("before_any_def") })
+    assert_includes used, "users.create.notice"
+  end
+
+  def test_ee_variant_mailer_resolves
+    source_files = {
+      "ee/app/mailers/payment_order_mailer.rb" => <<~RUBY.lines(chomp: true)
+        class PaymentOrderMailer < ApplicationMailer
+          def approval_failed
+            mail(subject: t(".email_text"))
+          end
+        end
+      RUBY
+    }
+
+    used = @strategy.additional_used_names(source_files)
+    assert_includes used, "payment_order_mailer.approval_failed.email_text"
+  end
+
+  def test_non_lazy_explicit_key_is_not_expanded
+    source_files = {
+      "app/controllers/users_controller.rb" => <<~RUBY.lines(chomp: true)
+        class UsersController < ApplicationController
+          def create
+            t("explicit.key")
+          end
+        end
+      RUBY
+    }
+
+    # Explicit (non-lazy) keys are handled by usage_regex elsewhere, not by
+    # lazy expansion. additional_used_names must not invent anything for them.
+    used = @strategy.additional_used_names(source_files)
+    refute(used.any? { |k| k.include?("explicit") })
+  end
+end
+
+class I18nKeysRubyLazyLookupIntegrationTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("config/locales")
+    File.write("config/locales/en.yml", <<~YAML)
+      en:
+        payment_order_mailer:
+          approval_failed:
+            email_text: "Approval failed"
+            unused_in_mailer: "Never used"
+        users:
+          create:
+            notice: "Created"
+        user_mailer:
+          welcome:
+            body: "Welcome"
+    YAML
+
+    FileUtils.mkdir_p("app/mailers")
+    File.write("app/mailers/payment_order_mailer.rb", <<~RUBY)
+      class PaymentOrderMailer < ApplicationMailer
+        def approval_failed
+          mail(subject: t(".email_text"))
+        end
+      end
+    RUBY
+
+    FileUtils.mkdir_p("app/controllers")
+    File.write("app/controllers/users_controller.rb", <<~RUBY)
+      class UsersController < ApplicationController
+        def create
+          redirect_to users_path, notice: t(".notice")
+        end
+      end
+    RUBY
+
+    FileUtils.mkdir_p("app/views/user_mailer")
+    File.write("app/views/user_mailer/welcome.text.erb", <<~ERB)
+      <%= t('.body') %>
+    ERB
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.rm_rf(@tmpdir)
+  end
+
+  def test_lazy_lookup_in_rb_and_text_templates_detected_as_used
+    config = Keela::Configuration.new
+    config.directory_patterns = %w[config/locales/**/*.yml app/**/*.rb app/views/**/*.erb]
+    config.extensions = %w[yml rb erb]
+
+    strategy = Keela::Strategies::I18nKeys.new
+    scanner = Keela::Scanner.new(strategy: strategy, configuration: config)
+
+    scanner.run(force_report: true)
+
+    unused_keys = scanner.unused_collection.values.flatten
+
+    refute_includes unused_keys, "payment_order_mailer.approval_failed.email_text"
+    refute_includes unused_keys, "users.create.notice"
+    refute_includes unused_keys, "user_mailer.welcome.body"
+
+    assert_includes unused_keys, "payment_order_mailer.approval_failed.unused_in_mailer"
+  end
+end
