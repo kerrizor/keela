@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Stale exclusions are now reported during a normal run, not just under `--test-exclusions`.** An entry in the excluded YAML whose definition no longer exists (removed, renamed, or its file deleted) was previously only caught by the separate `--test-exclusions` command, so the exclusions file silently rotted. A normal run now flags these inline, elevated to the same behavior as newly unused findings: in baseline mode it fails the run (exit 1), and structured output (`--format json|toon`) carries a `stale_exclusions` section and a `stale_total` summary count. Detection is scoped to the current strategy's section; legacy flat-format entries are skipped to avoid cross-strategy false positives ([#103](https://github.com/kerrizor/keela/issues/103))
+- **New `--normalize-exclusions` flag rewrites the exclusions file in sorted, normalized order.** An explicit write mode (modeled on `--update-baseline`) that deep-sorts the excluded YAML: strategy keys, then file keys within each strategy, then the `name: reason` entries by name. It is reorder-only and non-destructive, it never prunes stale entries, and it preserves every reason verbatim (reasons containing colons stay quoted). Both the strategy-aware and legacy flat formats are handled, output is idempotent, and the file is rewritten with a fixed header (freeform comments are not preserved) ([#93](https://github.com/kerrizor/keela/issues/93))
 
 ### Changed
 

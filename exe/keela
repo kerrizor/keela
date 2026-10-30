@@ -94,6 +94,10 @@ OptionParser.new do |opts|
     options[:test_exclusions] = true
   end
 
+  opts.on("--normalize-exclusions", "Rewrite the exclusions file in sorted, normalized order") do
+    options[:normalize_exclusions] = true
+  end
+
   opts.on("-h", "--help", "Show this help") do
     puts opts
     exit
@@ -132,6 +136,21 @@ if options[:test_exclusions]
 
   validator = Keela::ExclusionValidator.new(excluded_path)
   success = validator.validate
+  exit(success ? 0 : 1)
+end
+
+# Handle --normalize-exclusions mode
+if options[:normalize_exclusions]
+  excluded_path = Keela.configuration.excluded_path ||
+                  Keela::Scanner::DEFAULT_EXCLUDED_PATHS.find { |p| File.exist?(p) }
+
+  unless excluded_path
+    warn "Error: No exclusion file found. Specify with --excluded PATH"
+    exit 1
+  end
+
+  normalizer = Keela::ExclusionNormalizer.new(excluded_path)
+  success = normalizer.normalize
   exit(success ? 0 : 1)
 end
 

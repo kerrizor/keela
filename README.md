@@ -178,6 +178,9 @@ keela --source-location
 # Validate exclusion file entries (find stale exclusions)
 keela --test-exclusions
 
+# Rewrite the exclusion file in sorted, normalized order
+keela --normalize-exclusions
+
 # Show version
 keela --version
 ```
@@ -507,6 +510,18 @@ Or configure in `keela.yml`:
 ```yaml
 excluded_path: ".keela/excluded.yml"
 ```
+
+### Normalizing the Exclusion File
+
+As the exclusion file grows, entries tend to land in whatever order they were added, which makes diffs noisy. Rewrite it in a sorted, canonical order with:
+
+```bash
+keela --normalize-exclusions
+```
+
+This sorts the strategy sections, the files within each section, and the entries within each file, then rewrites the file with a fixed header. It is reorder-only: no entry is removed, and every `name: reason` pair is preserved (use `--test-exclusions` to find stale entries). Running it twice produces identical output.
+
+Freeform comments are not preserved: the rewrite regenerates a fixed header, so any hand-written comments in the file are dropped.
 
 ## Ruby API
 

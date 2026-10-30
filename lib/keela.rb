@@ -16,6 +16,7 @@ require_relative "keela/reporter"
 require_relative "keela/baseline"
 require_relative "keela/scanner"
 require_relative "keela/exclusion_validator"
+require_relative "keela/exclusion_normalizer"
 require_relative "keela/formatters"
 
 module Keela
