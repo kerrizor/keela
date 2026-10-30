@@ -3,11 +3,12 @@
 module Keela
   module Formatters
     class Base
-      attr_reader :results, :strategies
+      attr_reader :results, :strategies, :stale_exclusions
 
-      def initialize(results:, strategies:)
+      def initialize(results:, strategies:, stale_exclusions: {})
         @results = results
         @strategies = strategies
+        @stale_exclusions = stale_exclusions
       end
 
       def format
@@ -27,6 +28,14 @@ module Keela
 
       def non_empty_results
         results.reject { |_, v| v.empty? }
+      end
+
+      def non_empty_stale_exclusions
+        stale_exclusions.reject { |_, v| v.empty? }
+      end
+
+      def stale_total
+        stale_exclusions.values.flat_map(&:values).flatten.size
       end
     end
   end

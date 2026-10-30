@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 require "parallel"
+require "set"
 require "yaml"
 
 module Keela
   class Scanner
-    attr_reader :strategy, :configuration, :baseline, :source_files, :unused_collection, :source_locations, :new_unused, :removed
+    attr_reader :strategy, :configuration, :baseline, :source_files, :unused_collection, :source_locations, :new_unused, :removed, :stale_exclusions
 
     DEFAULT_EXCLUDED_PATHS = [".keela/excluded.yml", "keela_excluded.yml"].freeze
     DEFAULT_BASELINE_PATHS = [".keela/baseline.yml", "keela_baseline.yml"].freeze
@@ -51,6 +52,7 @@ module Keela
       @source_locations = {}  # { "file:name" => line_number }
       @new_unused = []
       @removed = []
+      @stale_exclusions = Hash.new { |hash, key| hash[key] = [] }
     end
 
     def run(force_report: false, update_baseline: false, silent: false)
@@ -71,7 +73,10 @@ module Keela
 
       if report_mode
         elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
-        reporter.print_full_report(unused_collection, elapsed, source_locations: source_locations) unless silent
+        unless silent
+          reporter.print_full_report(unused_collection, elapsed, source_locations: source_locations)
+          reporter.print_stale_exclusions(stale_exclusions, resolve_excluded_path) unless stale_exclusions.empty?
+        end
         if update_baseline
           baseline.set(strategy.name, unused_collection)
           # Note: caller is responsible for calling baseline.save after all strategies run
@@ -91,7 +96,9 @@ module Keela
         )
       end
 
-      new_unused.empty? && removed.empty?
+      reporter.print_stale_exclusions(stale_exclusions, resolve_excluded_path) unless silent || stale_exclusions.empty?
+
+      new_unused.empty? && removed.empty? && stale_exclusions.empty?
     end
 
     def file_globs
@@ -181,15 +188,34 @@ module Keela
       # Support both formats:
       # 1. Strategy-aware (new): { methods: { "file.rb": [{ name: "reason" }] } }
       # 2. Flat (legacy): { "file.rb": [{ name: "reason" }] }
-      excluded = if all_excluded.key?(strategy.name.to_sym)
+      strategy_aware = all_excluded.key?(strategy.name.to_sym)
+      excluded = if strategy_aware
                    all_excluded[strategy.name.to_sym] || {}
                  else
                    all_excluded # Legacy flat format
                  end
 
+      # Stale detection is only safe for the current strategy's section. A legacy
+      # flat entry may belong to another strategy, and keela runs one strategy per
+      # Scanner, so flagging it here would be a false positive. Skip flat format.
+      #
+      detect_stale_exclusions(excluded, definitions) if strategy_aware
+
       definitions.reject do |h|
         excluded_for_file = excluded[h[:file].to_sym]
         excluded_for_file&.flat_map(&:keys)&.include?(h[:name].to_sym)
+      end
+    end
+
+    def detect_stale_exclusions(excluded, definitions)
+      present = definitions.map { |h| [h[:file].to_sym, h[:name].to_sym] }.to_set
+
+      excluded.each do |file, entries|
+        Array(entries).flat_map(&:keys).each do |name|
+          next if present.include?([file, name])
+
+          @stale_exclusions[file.to_s] << name.to_s
+        end
       end
     end
 

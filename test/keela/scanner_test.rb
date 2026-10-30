@@ -746,6 +746,108 @@ class ScannerConfigurationValidationTest < Minitest::Test
     assert_equal 2, result.size
   end
 
+  # stale exclusion detection (strategy-aware format)
+
+  def test_detects_stale_exclusion_when_definition_is_gone
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        excluded_content = <<~YAML
+          methods:
+            "app/models/user.rb":
+              - vanished_method: "Used dynamically"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+        scanner = Keela::Scanner.new(strategy: Keela::Strategies::Methods.new, configuration: config)
+
+        # vanished_method is NOT among the current definitions
+        definitions = [{ name: "still_here", file: "app/models/user.rb" }]
+        scanner.send(:filter_excluded, definitions)
+
+        assert_equal({ "app/models/user.rb" => ["vanished_method"] }, scanner.stale_exclusions)
+      end
+    end
+  end
+
+  def test_does_not_flag_valid_exclusion_as_stale
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        excluded_content = <<~YAML
+          methods:
+            "app/models/user.rb":
+              - real_method: "Used dynamically"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+        scanner = Keela::Scanner.new(strategy: Keela::Strategies::Methods.new, configuration: config)
+
+        definitions = [{ name: "real_method", file: "app/models/user.rb" }]
+        scanner.send(:filter_excluded, definitions)
+
+        assert_empty scanner.stale_exclusions
+      end
+    end
+  end
+
+  def test_stale_detection_scoped_to_current_strategy
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        # A stale-looking methods: entry must NOT be reported during a scopes run.
+        excluded_content = <<~YAML
+          methods:
+            "app/models/user.rb":
+              - gone_method: "Used dynamically"
+          scopes:
+            "app/models/user.rb":
+              - active: "Used dynamically"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+        scanner = Keela::Scanner.new(strategy: Keela::Strategies::Scopes.new, configuration: config)
+
+        # 'active' still exists, so the scopes section is clean; methods: is ignored.
+        definitions = [{ name: "active", file: "app/models/user.rb" }]
+        scanner.send(:filter_excluded, definitions)
+
+        assert_empty scanner.stale_exclusions
+      end
+    end
+  end
+
+  def test_legacy_flat_entries_are_never_reported_stale
+    Dir.mktmpdir do |dir|
+      Dir.chdir(dir) do
+        # Legacy flat format: we cannot tell which strategy an entry belongs to
+        # during a single-strategy run, so stale detection is skipped entirely.
+        excluded_content = <<~YAML
+          "app/models/user.rb":
+            - gone_method: "Used dynamically"
+        YAML
+        File.write("excluded.yml", excluded_content)
+
+        config = Keela::Configuration.new
+        config.excluded_path = "excluded.yml"
+        scanner = Keela::Scanner.new(strategy: Keela::Strategies::Methods.new, configuration: config)
+
+        definitions = [{ name: "something_else", file: "app/models/user.rb" }]
+        scanner.send(:filter_excluded, definitions)
+
+        assert_empty scanner.stale_exclusions
+      end
+    end
+  end
+
+  def test_stale_exclusion_initialized_empty
+    scanner = Keela::Scanner.new(strategy: Keela::Strategies::Methods.new, configuration: Keela::Configuration.new)
+    assert_empty scanner.stale_exclusions
+  end
+
   # resolve_baseline_path tests
 
   def test_resolve_baseline_path_returns_configured_path_when_file_exists
@@ -1017,5 +1119,53 @@ class ScannerUsageDetectionTest < Minitest::Test
     scanner.instance_variable_set(:@source_files, @scanner.source_files)
     scanner.send(:find_unused, scanner.send(:find_definitions))
     scanner.unused_collection.values.flatten
+  end
+end
+
+class ScannerStaleExclusionRunTest < Minitest::Test
+  def setup
+    @tmpdir = Dir.mktmpdir
+    @original_dir = Dir.pwd
+    Dir.chdir(@tmpdir)
+
+    FileUtils.mkdir_p("app/models")
+    # A clean model: no unused methods.
+    File.write("app/models/user.rb", <<~RUBY)
+      class User
+        def real_method
+        end
+
+        def caller
+          real_method
+        end
+      end
+    RUBY
+
+    # Baseline matches current state (no new/removed unused).
+    File.write(".keela_baseline.yml", "---\n{}")
+
+    # Excluded file references a method that no longer exists.
+    File.write("excluded.yml", <<~YAML)
+      methods:
+        "app/models/user.rb":
+          - vanished_method: "Used dynamically"
+    YAML
+  end
+
+  def teardown
+    Dir.chdir(@original_dir)
+    FileUtils.remove_entry(@tmpdir)
+  end
+
+  def test_baseline_mode_fails_when_stale_exclusion_present
+    config = Keela::Configuration.new
+    config.excluded_path = "excluded.yml"
+    config.baseline_path = ".keela_baseline.yml"
+    scanner = Keela::Scanner.new(strategy: Keela::Strategies::Methods.new, configuration: config)
+
+    result = scanner.run(silent: true)
+
+    refute result, "Baseline run should fail (return false) when a stale exclusion is present"
+    assert_equal({ "app/models/user.rb" => ["vanished_method"] }, scanner.stale_exclusions)
   end
 end

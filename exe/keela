@@ -210,6 +210,7 @@ end
 
 success = true
 results = {}
+stale_exclusions = {}
 
 structured_output = Keela::Formatters.structured_format?(options[:format])
 silent_output = structured_output || options[:quiet]
@@ -229,6 +230,7 @@ strategies.each_with_index do |strategy, index|
 
   # Collect results for structured output formats
   results[strategy.name] = scanner.unused_collection.transform_values(&:to_a)
+  stale_exclusions[strategy.name] = scanner.stale_exclusions.transform_values(&:to_a)
 
   unless silent_output
     puts if strategies.size > 1 && index < strategies.size - 1
@@ -244,7 +246,7 @@ end
 # Output structured format if requested
 if structured_output
   formatter_class = Keela::Formatters.for(options[:format])
-  formatter = formatter_class.new(results: results, strategies: strategies)
+  formatter = formatter_class.new(results: results, strategies: strategies, stale_exclusions: stale_exclusions)
   puts formatter.format
 end
 
