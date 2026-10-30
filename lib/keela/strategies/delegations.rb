@@ -48,6 +48,62 @@ module Keela
         methods.length == 1 ? methods.first : methods
       end
 
+      # Own extraction for delegation files so multi-line delegate statements
+      # are detected in full. The scanner's default line-by-line path sees only
+      # the first line of a wrapped delegate, missing every continuation method.
+      # We join each statement into one logical line, then reuse
+      # #extract_definition on the result so target/prefix detection is unchanged.
+      #
+      # Because returning non-nil makes the scanner skip its default path, this
+      # must also replicate that path's comment-skipping and its line-gating on
+      # configuration.source_location.
+      #
+      def extract_definitions_from_file(filepath, lines)
+        track_lines = Keela.configuration.source_location
+        definitions = []
+        index = 0
+
+        while index < lines.length
+          line = lines[index]
+
+          if skip_comments? && line.strip.start_with?("#")
+            index += 1
+            next
+          end
+
+          unless line =~ /^\s*delegate\s+/
+            index += 1
+            next
+          end
+
+          start_index = index
+          statement = strip_comment(line)
+
+          # A delegate statement continues onto the next line while the current
+          # line, ignoring a trailing comment and trailing whitespace, ends in a
+          # comma. It stops at the first line that does not (the options line).
+          # Strip inline comments as we join so #extract_definition sees the same
+          # clean text the scanner's default (comment-skipping) path would.
+          #
+          while continuation?(lines[index])
+            index += 1
+            break if index >= lines.length
+
+            statement += strip_comment(lines[index])
+          end
+
+          index += 1
+
+          Array(extract_definition(statement)).compact.each do |name|
+            definition = { name: name, file: filepath }
+            definition[:line] = start_index + 1 if track_lines
+            definitions << definition
+          end
+        end
+
+        definitions
+      end
+
       def usage_regex(name)
         # Match usage of the delegated method, but not the delegate declaration
         # Uses negative lookbehind to avoid matching:
@@ -84,6 +140,25 @@ module Keela
       end
 
       private
+
+      # Whether +line+ hands off to a continuation line: true when it ends in a
+      # comma after a trailing comment and whitespace are stripped. A `#` inside
+      # a delegate statement can only start a comment, since method symbols
+      # cannot contain one, so dropping from the first `#` is safe here.
+      #
+      def continuation?(line)
+        return false unless line
+
+        strip_comment(line).rstrip.end_with?(",")
+      end
+
+      # Drop a trailing line comment, preserving the newline. A `#` inside a
+      # delegate statement can only start a comment, since method symbols cannot
+      # contain one, so dropping from the first `#` is safe here.
+      #
+      def strip_comment(line)
+        line.sub(/#[^\n]*/, "")
+      end
 
       def folded_usage_regex(name)
         /(?<!:)(?<!delegate\s)(?<![a-z_])#{Regexp.quote(name.downcase(:fold))}(?!\w)/

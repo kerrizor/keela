@@ -116,6 +116,117 @@ class DelegationsStrategyTest < Minitest::Test
     assert_equal "save!", @strategy.extract_definition("delegate :save!, to: :record")
   end
 
+  # extract_definitions_from_file tests - multi-line delegates (#52)
+
+  def names_in(lines)
+    @strategy.extract_definitions_from_file("app/models/thing.rb", lines).map { |d| d[:name] }
+  end
+
+  def test_multi_line_delegate_detects_all_methods
+    lines = <<~RUBY.lines
+      delegate :name_with_article,
+        :reviewable_name,
+        :review_created_by,
+        :calculate_expected_sent_at,
+        to: :current_payment_order_attempt, allow_nil: true
+    RUBY
+
+    assert_equal %w[name_with_article reviewable_name review_created_by calculate_expected_sent_at],
+      names_in(lines)
+  end
+
+  def test_multi_line_delegate_applies_prefix_true_to_all_methods
+    lines = <<~RUBY.lines
+      delegate :name,
+        :email,
+        to: :user, prefix: true
+    RUBY
+
+    assert_equal %w[user_name user_email], names_in(lines)
+  end
+
+  def test_multi_line_delegate_applies_custom_prefix_to_all_methods
+    lines = <<~RUBY.lines
+      delegate :name,
+        :email,
+        to: :user, prefix: :owner, allow_nil: true
+    RUBY
+
+    assert_equal %w[owner_name owner_email], names_in(lines)
+  end
+
+  def test_single_line_delegate_still_works
+    lines = ["delegate :a, :b, to: :user\n"]
+
+    assert_equal %w[a b], names_in(lines)
+  end
+
+  def test_single_line_single_method_still_works
+    lines = ["delegate :name, to: :user\n"]
+
+    assert_equal %w[name], names_in(lines)
+  end
+
+  def test_trailing_comment_after_continuation_comma_still_joins
+    lines = <<~RUBY.lines
+      delegate :name, # the name
+        :email,       # the email
+        to: :user
+    RUBY
+
+    assert_equal %w[name email], names_in(lines)
+  end
+
+  def test_commented_out_delegate_is_not_detected
+    lines = ["# delegate :name, to: :user\n"]
+
+    assert_empty names_in(lines)
+  end
+
+  def test_mixed_single_and_multi_line_delegates_both_detected
+    lines = <<~RUBY.lines
+      delegate :title, to: :project
+      delegate :name,
+        :email,
+        to: :user
+    RUBY
+
+    assert_equal %w[title name email], names_in(lines)
+  end
+
+  def test_reports_delegate_statement_start_line_when_source_location_enabled
+    Keela.configuration.source_location = true
+    lines = <<~RUBY.lines
+      class Thing
+        delegate :name,
+          :email,
+          to: :user
+      end
+    RUBY
+
+    definitions = @strategy.extract_definitions_from_file("app/models/thing.rb", lines)
+
+    assert_equal [2, 2], definitions.map { |d| d[:line] }
+  ensure
+    Keela.configuration.source_location = false
+  end
+
+  def test_omits_line_when_source_location_disabled
+    lines = ["delegate :name, to: :user\n"]
+
+    definition = @strategy.extract_definitions_from_file("app/models/thing.rb", lines).first
+
+    refute definition.key?(:line)
+  end
+
+  def test_definitions_include_the_file
+    lines = ["delegate :name, to: :user\n"]
+
+    definition = @strategy.extract_definitions_from_file("app/models/thing.rb", lines).first
+
+    assert_equal "app/models/thing.rb", definition[:file]
+  end
+
   # usage_regex tests
 
   def test_usage_regex_matches_method_call
